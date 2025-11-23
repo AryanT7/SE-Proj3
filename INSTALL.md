@@ -11,6 +11,7 @@
 git clone https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1.git
 cd ncsu-csc510-2025-s1-g1-p1
 ```
+test
 
 ### 2. Backend Setup (Flask)
 
