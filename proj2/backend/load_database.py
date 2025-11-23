@@ -111,16 +111,27 @@ def populate_db():
    # Suppliers data
    insert("""INSERT INTO suppliers (user_id, company_name, company_address, contact_phone, is_open) VALUES (%s, %s, %s, %s, %s)""",
          [(13, 'Company A', '123 Company Way', '555-0010', True),
-            (14, 'Company B', '456 Company Way', '555-0020', False),
+            (14, 'Company B', '456 Company Way', '555-0020', True),
             (15, 'Company C', '789 Company Way', '555-0030', True),
-            (16, 'Company D', '223 Company Way', '555-0040', False)])
+            (16, 'Company D', '223 Company Way', '555-0040', True)])
 
-   # Products data
+   # Products data - includes all food menu items for snack bundles
    insert("""INSERT INTO products (supplier_id, name, unit_price, inventory_quantity, size, keywords, category, discount, is_available) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-         [(13, 'Pepsi', 3.00, 10, 'medium', 'sweet, refreshing, cold, quick, energy', 'beverages', 0.00, True),
-            (14, 'Chips', 4.00, 20, None, 'crispy, salty, bold, quick, shareable', 'snacks', 0.00, True),
-            (15, 'Skittles', 5.00, 5, None, 'fun, colorful, tangy, sweet, fruity', 'candy', 0.00, False),
-            (16, 'Hot Dog', 7.00, 8, None, 'savory, filling, classic, flavorful', 'food', 0.00, True)])
+         [(13, 'Pepsi', 3.00, 100, 'medium', 'sweet, refreshing, cold, quick, energy', 'beverages', 0.00, True),
+            (13, 'Coca-Cola', 3.00, 100, 'medium', 'sweet, refreshing, cold, classic', 'beverages', 0.00, True),
+            (13, 'Sprite', 3.00, 100, 'medium', 'refreshing, lemon-lime, cold', 'beverages', 0.00, True),
+            (13, 'Juice Box', 2.50, 150, 'small', 'fruity, healthy, kids, refreshing', 'beverages', 0.00, True),
+            (14, 'Chips', 4.00, 200, None, 'crispy, salty, bold, quick, shareable', 'snacks', 0.00, True),
+            (14, 'Normal Popcorn', 5.00, 150, 'large', 'classic, buttery, warm, movie-night', 'snacks', 0.00, True),
+            (14, 'Air Popped Popcorn', 5.50, 100, 'large', 'healthy, light, low-salt, guilt-free', 'snacks', 0.00, True),
+            (14, 'Nachos', 6.00, 80, None, 'cheesy, crispy, savory, shareable', 'snacks', 0.00, True),
+            (14, 'Nuts Pack', 4.50, 120, None, 'protein, healthy, salty, crunchy', 'snacks', 0.00, True),
+            (15, 'Skittles', 3.50, 150, None, 'fun, colorful, tangy, sweet, fruity', 'candy', 0.00, True),
+            (15, 'Chocolate Bars', 3.00, 200, None, 'sweet, creamy, indulgent, classic', 'candy', 0.00, True),
+            (15, 'Dark Chocolate Bars', 3.50, 150, None, 'rich, sophisticated, less-sweet, antioxidants', 'candy', 0.00, True),
+            (16, 'Hot Dog', 7.00, 100, None, 'savory, filling, classic, flavorful', 'food', 0.00, True),
+            (16, 'Protein Bars', 4.00, 80, None, 'healthy, filling, energy, nutritious', 'food', 0.00, True),
+            (16, 'Fruits', 3.50, 60, None, 'healthy, fresh, sweet, natural', 'food', 0.00, True)])
 
    # Deliveries data 
    insert("""INSERT INTO deliveries (driver_id, customer_showing_id, payment_method_id, staff_id, payment_status, total_price, is_rated) VALUES (%s, %s, %s, %s, %s, %s, %s)""",

@@ -265,41 +265,70 @@ class CustomerService:
         db.session.commit()
         return customer_showing
 
-    def create_cart_item(self, customer_id, product_id, quantity):
-        """Add a product to the cart or increment quantity if it already exists.
+    def create_cart_item(self, customer_id, product_id=None, bundle_id=None, quantity=1):
+        """Add a product or bundle to the cart or increment quantity if it already exists.
 
         Args:
             customer_id: Customer's user id.
-            product_id: Product id to add.
+            product_id: Product id to add (optional, mutually exclusive with bundle_id).
+            bundle_id: Bundle id to add (optional, mutually exclusive with product_id).
             quantity: Positive integer quantity to add.
 
         Returns:
             CartItems: The created or updated cart item.
 
         Raises:
-            ValueError: If quantity is invalid, product is not found, or insufficient inventory.
+            ValueError: If quantity is invalid, neither or both product/bundle specified,
+                or product/bundle is not found, or insufficient inventory.
         """
         if quantity <= 0:
             raise ValueError("Quantity to add must be greater than zero")
 
+        if (product_id is None and bundle_id is None) or (product_id is not None and bundle_id is not None):
+            raise ValueError("Must specify either product_id or bundle_id, not both or neither")
+
         customer = self.get_customer(user_id=customer_id)
-        product = Products.query.filter_by(id=product_id).first()
-        if not product:
-            raise ValueError(f"Product {product_id} not found")
 
-        if product.inventory_quantity - quantity <= 0:
-            raise ValueError(f"Product inventory is insufficient")
+        # Handle product
+        if product_id is not None:
+            product = Products.query.filter_by(id=product_id).first()
+            if not product:
+                raise ValueError(f"Product {product_id} not found")
 
-        existing_item = CartItems.query.filter_by(customer_id=customer_id, product_id=product_id).first()
-        if existing_item:
-            existing_item.quantity += quantity
+            if product.inventory_quantity - quantity <= 0:
+                raise ValueError(f"Product inventory is insufficient")
+
+            existing_item = CartItems.query.filter_by(customer_id=customer_id, product_id=product_id, bundle_id=None).first()
+            if existing_item:
+                existing_item.quantity += quantity
+                db.session.commit()
+                return existing_item
+
+            cart_item = CartItems(customer_id=customer.user_id, product_id=product.id, quantity=quantity)
+            db.session.add(cart_item)
             db.session.commit()
-            return existing_item
+            return cart_item
 
-        cart_item = CartItems(customer_id=customer.user_id, product_id=product.id, quantity=quantity)
-        db.session.add(cart_item)
-        db.session.commit()
-        return cart_item
+        # Handle bundle
+        else:
+            from app.models import SnackBundles
+            bundle = SnackBundles.query.filter_by(id=bundle_id).first()
+            if not bundle:
+                raise ValueError(f"Bundle {bundle_id} not found")
+
+            if not bundle.is_available:
+                raise ValueError(f"Bundle {bundle_id} is not available")
+
+            existing_item = CartItems.query.filter_by(customer_id=customer_id, bundle_id=bundle_id, product_id=None).first()
+            if existing_item:
+                existing_item.quantity += quantity
+                db.session.commit()
+                return existing_item
+
+            cart_item = CartItems(customer_id=customer.user_id, bundle_id=bundle.id, quantity=quantity)
+            db.session.add(cart_item)
+            db.session.commit()
+            return cart_item
 
     def update_cart_item(self, cart_item_id, quantity):
         """Set a cart item's quantity to a new positive value.
