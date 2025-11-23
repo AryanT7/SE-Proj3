@@ -4,7 +4,7 @@ import os
 # Schema table names
 tables = ['theatres', 'auditoriums', 'seats', 'users', 'staff', 'movies', 'movie_showings',
           'customers', 'customer_showings', 'payment_methods', 'drivers', 'suppliers',
-          'products', 'deliveries', 'cart_items', 'delivery_items', 'coupons']
+          'products', 'deliveries', 'cart_items', 'delivery_items', 'coupons', 'snack_bundles', 'bundle_items']
 
 
 # Drop a single table with foreign key checks temporarily disabled 
@@ -262,17 +262,47 @@ def create_tables(db):
             FOREIGN KEY (staff_id) REFERENCES staff(user_id),
             CONSTRAINT check_total_price CHECK (total_price >= 0.00)
             )"""
+
+    # Snack bundles: combo packages with discounted pricing
+    snack_bundles = """CREATE TABLE IF NOT EXISTS snack_bundles (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(128) NOT NULL,
+                    description VARCHAR(512),
+                    original_price DECIMAL(10,2) NOT NULL,
+                    total_price DECIMAL(10,2) NOT NULL,
+                    created_by_staff_id BIGINT NOT NULL,
+                    is_available BOOLEAN NOT NULL DEFAULT TRUE,
+                    date_added DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (created_by_staff_id) REFERENCES staff(user_id),
+                    CONSTRAINT check_bundle_original_price CHECK (original_price >= 0.00),
+                    CONSTRAINT check_bundle_price CHECK (total_price >= 0.00)
+                    )"""
+
+    # Bundle items: products included in bundles with quantities
+    bundle_items = """CREATE TABLE IF NOT EXISTS bundle_items (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    bundle_id BIGINT NOT NULL,
+                    product_id BIGINT NOT NULL,
+                    quantity INT UNSIGNED NOT NULL DEFAULT 1,
+                    FOREIGN KEY (bundle_id) REFERENCES snack_bundles(id) ON DELETE CASCADE,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+                    CONSTRAINT unique_bundle_product UNIQUE (bundle_id, product_id),
+                    CONSTRAINT check_bundle_item_quantity CHECK (quantity > 0)
+                    )"""
     
-    # Cart items: unique (customer, product) with positive quantity
+    # Cart items: unique (customer, product/bundle) with positive quantity
     cart_items = """CREATE TABLE IF NOT EXISTS cart_items (
                     id BIGINT AUTO_INCREMENT PRIMARY KEY,
                     customer_id BIGINT NOT NULL,
-                    product_id BIGINT NOT NULL,
+                    product_id BIGINT,
+                    bundle_id BIGINT,
                     quantity INT UNSIGNED NOT NULL DEFAULT 1,
                     FOREIGN KEY (customer_id) REFERENCES customers(user_id),
                     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-                    CONSTRAINT unique_customer_product UNIQUE (customer_id, product_id),
-                    CONSTRAINT check_cart_quantity CHECK (quantity > 0)
+                    FOREIGN KEY (bundle_id) REFERENCES snack_bundles(id) ON DELETE CASCADE,
+                    CONSTRAINT check_cart_quantity CHECK (quantity > 0),
+                    CONSTRAINT check_product_or_bundle CHECK ((product_id IS NOT NULL AND bundle_id IS NULL) OR (product_id IS NULL AND bundle_id IS NOT NULL))
                     )"""
     
     # Delivery items: link cart items to deliveries; unique pair
@@ -322,6 +352,8 @@ def create_tables(db):
     cursor_object.execute(drivers)
     cursor_object.execute(suppliers)
     cursor_object.execute(products)
+    cursor_object.execute(snack_bundles)
+    cursor_object.execute(bundle_items)
     cursor_object.execute(deliveries)
     cursor_object.execute(cart_items)
     cursor_object.execute(delivery_items)

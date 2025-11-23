@@ -313,7 +313,7 @@ def add_to_cart(customer_id):
     Add Item to Cart
     ---
     tags: [Shopping Cart]
-    description: Adds a product item to the customer's shopping cart.
+    description: Adds a product or bundle item to the customer's shopping cart.
     parameters:
       - in: path
         name: customer_id
@@ -331,13 +331,14 @@ def add_to_cart(customer_id):
           properties:
             message: {type: string}
             cart_item_id: {type: integer}
-      400: {description: Invalid product or quantity}
+      400: {description: Invalid product/bundle or quantity}
     """
     try:
         data = request.get_json()
         cart_item = customer_service.create_cart_item(
             customer_id=customer_id,
             product_id=data.get('product_id'),
+            bundle_id=data.get('bundle_id'),
             quantity=data.get('quantity', 1)
         )
         return jsonify({
@@ -379,6 +380,7 @@ def get_cart(customer_id):
             'items': [{
                 'id': item.id,
                 'product_id': item.product_id,
+                'bundle_id': item.bundle_id,
                 'quantity': item.quantity
             } for item in items]
         }), 200

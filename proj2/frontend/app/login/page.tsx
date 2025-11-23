@@ -43,8 +43,7 @@ export default function LoginPage() {
         expires: 1
       });
 
-      router.push("/menu");
-      window.location.reload();
+      window.location.href = "/";
 
     } catch (error: unknown) {
       // This catches network errors AND the error thrown above

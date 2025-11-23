@@ -225,9 +225,13 @@ class CartItems(db.Model):
     __tablename__ = 'cart_items'
     id = db.Column(db.BigInteger, primary_key = True, autoincrement = True)
     customer_id = db.Column(db.BigInteger, db.ForeignKey('customers.user_id'), nullable = False)
-    product_id = db.Column(db.BigInteger, db.ForeignKey('products.id', ondelete='CASCADE'), nullable = False)
+    product_id = db.Column(db.BigInteger, db.ForeignKey('products.id', ondelete='CASCADE'), nullable = True)
+    bundle_id = db.Column(db.BigInteger, db.ForeignKey('snack_bundles.id', ondelete='CASCADE'), nullable = True)
     quantity = db.Column(INTEGER(unsigned = True), server_default = '1', nullable = False)
-    __table_args__ = (db.UniqueConstraint('customer_id', 'product_id', name = 'unique_customer_product'), db.CheckConstraint('quantity > 0', name = 'check_cart_quantity'))
+    __table_args__ = (
+        db.CheckConstraint('quantity > 0', name = 'check_cart_quantity'),
+        db.CheckConstraint('(product_id IS NOT NULL AND bundle_id IS NULL) OR (product_id IS NULL AND bundle_id IS NOT NULL)', name = 'check_product_or_bundle')
+    )
 
     def __repr__(self):
         return f'<Cart Items id = {self.id} customer_id = {self.customer_id} product id = {self.product_id} quantity = {self.quantity}>'
@@ -261,3 +265,29 @@ class CodePuzzles(db.Model):
 
     def __repr__(self):
         return f'<CodePuzzles id={self.id} folder={self.folder!r} name={self.name!r} difficulty={self.difficulty} active={self.is_active}>'
+class SnackBundles(db.Model):
+    __tablename__ = 'snack_bundles'
+    id = db.Column(db.BigInteger, primary_key = True, autoincrement = True)
+    name = db.Column(db.String(128), nullable = False)
+    description = db.Column(db.String(512))
+    original_price = db.Column(DECIMAL(10,2), nullable = False)
+    total_price = db.Column(DECIMAL(10,2), nullable = False)
+    created_by_staff_id = db.Column(db.BigInteger, db.ForeignKey('staff.user_id'), nullable = False)
+    is_available = db.Column(db.Boolean, server_default = expression.true(), nullable = False)
+    date_added = db.Column(db.DateTime(timezone = True), nullable = False, server_default = func.current_timestamp())
+    last_updated = db.Column(db.DateTime(timezone = True), nullable = False, server_default = func.current_timestamp(), server_onupdate = func.current_timestamp())
+    __table_args__ = (db.CheckConstraint('original_price >= 0.00', name = 'check_bundle_original_price'), db.CheckConstraint('total_price >= 0.00', name = 'check_bundle_price'),)
+
+    def __repr__(self):
+        return f'<SnackBundle id = {self.id} name = {self.name!r} total_price = {self.total_price} is_available = {self.is_available}>'
+
+class BundleItems(db.Model):
+    __tablename__ = 'bundle_items'
+    id = db.Column(db.BigInteger, primary_key = True, autoincrement = True)
+    bundle_id = db.Column(db.BigInteger, db.ForeignKey('snack_bundles.id', ondelete='CASCADE'), nullable = False)
+    product_id = db.Column(db.BigInteger, db.ForeignKey('products.id', ondelete='CASCADE'), nullable = False)
+    quantity = db.Column(INTEGER(unsigned = True), server_default = '1', nullable = False)
+    __table_args__ = (db.UniqueConstraint('bundle_id', 'product_id', name = 'unique_bundle_product'), db.CheckConstraint('quantity > 0', name = 'check_bundle_item_quantity'))
+
+    def __repr__(self):
+        return f'<BundleItem id = {self.id} bundle_id = {self.bundle_id} product_id = {self.product_id} quantity = {self.quantity}>'
