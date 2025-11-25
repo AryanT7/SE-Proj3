@@ -391,3 +391,47 @@ def authenticated_client(client, app, sample_user):
             'password': 'password123'
         })
     return client
+
+# Create a sample bundle with products; return bundle id
+@pytest.fixture(scope='function')
+def sample_bundle(app, sample_admin, sample_product, sample_product_extra):
+    from app.services.bundle_service import BundleService
+    with app.app_context():
+        bundle_service = BundleService(sample_admin)
+        
+        # Calculate original price
+        product1 = Products.query.get(sample_product)
+        product2 = Products.query.get(sample_product_extra)
+        original_price = (float(product1.unit_price) * 2) + (float(product2.unit_price) * 1)
+        
+        bundle = bundle_service.create_bundle(
+            name='Test Bundle',
+            description='A test bundle with products',
+            original_price=original_price,
+            product_items=[
+                {'product_id': sample_product, 'quantity': 2},
+                {'product_id': sample_product_extra, 'quantity': 1}
+            ]
+        )
+        return bundle.id
+
+# Create another sample bundle; return bundle id
+@pytest.fixture(scope='function')
+def sample_bundle_extra(app, sample_admin, sample_product):
+    from app.services.bundle_service import BundleService
+    with app.app_context():
+        bundle_service = BundleService(sample_admin)
+        
+        # Calculate original price
+        product = Products.query.get(sample_product)
+        original_price = float(product.unit_price) * 1
+        
+        bundle = bundle_service.create_bundle(
+            name='Extra Bundle',
+            description='Another test bundle',
+            original_price=original_price,
+            product_items=[
+                {'product_id': sample_product, 'quantity': 1}
+            ]
+        )
+        return bundle.id

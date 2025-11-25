@@ -1,6 +1,6 @@
 import pytest
 from app.services.customer_service import CustomerService
-from app.models import Theatres, PaymentMethods, CartItems, Seats
+from app.models import Theatres, PaymentMethods, CartItems, Seats, Products
 from app.app import db
 from decimal import Decimal
 
@@ -466,3 +466,176 @@ class TestCustomerService:
             )
             with pytest.raises(ValueError, match=f"Delivery {delivery.id} not found"):
                 _ = svc.get_delivery_details(delivery.id)
+
+    # --- Tests for Bundle Cart Functionality ---
+
+    # Test adding a bundle to cart
+    def test_create_cart_item_with_bundle_success(self, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import SnackBundles
+            
+            # Create a bundle
+            bundle_service = BundleService(sample_admin)
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price) * 2
+            bundle = bundle_service.create_bundle(
+                name='Test Bundle',
+                description='Bundle for cart test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 2}]
+            )
+            
+            # Add bundle to cart
+            svc = CustomerService()
+            cart_item = svc.create_cart_item(
+                customer_id=sample_customer,
+                bundle_id=bundle.id,
+                quantity=1
+            )
+            
+            assert cart_item is not None
+            assert cart_item.customer_id == sample_customer
+            assert cart_item.bundle_id == bundle.id
+            assert cart_item.product_id is None
+            assert cart_item.quantity == 1
+
+    # Test adding existing bundle to cart increments quantity
+    def test_create_cart_item_with_bundle_existing_increases_quantity(self, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            
+            bundle_service = BundleService(sample_admin)
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price) * 1
+            bundle = bundle_service.create_bundle(
+                name='Test Bundle',
+                description='Bundle for cart test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            svc = CustomerService()
+            item1 = svc.create_cart_item(
+                customer_id=sample_customer,
+                bundle_id=bundle.id,
+                quantity=1
+            )
+            item2 = svc.create_cart_item(
+                customer_id=sample_customer,
+                bundle_id=bundle.id,
+                quantity=2
+            )
+            
+            assert item1.id == item2.id
+            assert item2.quantity == 3
+
+    # Test that both product_id and bundle_id cannot be specified
+    def test_create_cart_item_both_product_and_bundle_error(self, app, sample_customer, sample_product, sample_admin):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            
+            bundle_service = BundleService(sample_admin)
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price) * 1
+            bundle = bundle_service.create_bundle(
+                name='Test Bundle',
+                description='Test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            svc = CustomerService()
+            with pytest.raises(ValueError, match="Must specify either product_id or bundle_id, not both or neither"):
+                svc.create_cart_item(
+                    customer_id=sample_customer,
+                    product_id=sample_product,
+                    bundle_id=bundle.id,
+                    quantity=1
+                )
+
+    # Test that neither product_id nor bundle_id raises error
+    def test_create_cart_item_neither_product_nor_bundle_error(self, app, sample_customer):
+        with app.app_context():
+            svc = CustomerService()
+            with pytest.raises(ValueError, match="Must specify either product_id or bundle_id, not both or neither"):
+                svc.create_cart_item(
+                    customer_id=sample_customer,
+                    quantity=1
+                )
+
+    # Test adding unavailable bundle to cart
+    def test_create_cart_item_unavailable_bundle_error(self, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            
+            bundle_service = BundleService(sample_admin)
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price) * 1
+            bundle = bundle_service.create_bundle(
+                name='Test Bundle',
+                description='Test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            # Toggle bundle to unavailable
+            bundle_service.toggle_availability(bundle.id)
+            
+            svc = CustomerService()
+            with pytest.raises(ValueError, match=f"Bundle {bundle.id} is not available"):
+                svc.create_cart_item(
+                    customer_id=sample_customer,
+                    bundle_id=bundle.id,
+                    quantity=1
+                )
+
+    # Test adding non-existent bundle to cart
+    def test_create_cart_item_bundle_not_found_error(self, app, sample_customer):
+        with app.app_context():
+            svc = CustomerService()
+            with pytest.raises(ValueError, match="Bundle 99999 not found"):
+                svc.create_cart_item(
+                    customer_id=sample_customer,
+                    bundle_id=99999,
+                    quantity=1
+                )
+
+    # Test getting cart items with both products and bundles
+    def test_get_cart_items_with_products_and_bundles(self, app, sample_customer, sample_product, sample_admin):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            
+            # Create a bundle
+            bundle_service = BundleService(sample_admin)
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price) * 2
+            bundle = bundle_service.create_bundle(
+                name='Test Bundle',
+                description='Test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 2}]
+            )
+            
+            svc = CustomerService()
+            # Add product to cart
+            svc.create_cart_item(
+                customer_id=sample_customer,
+                product_id=sample_product,
+                quantity=1
+            )
+            # Add bundle to cart
+            svc.create_cart_item(
+                customer_id=sample_customer,
+                bundle_id=bundle.id,
+                quantity=1
+            )
+            
+            cart_items = svc.get_cart_items(sample_customer)
+            assert len(cart_items) == 2
+            
+            # Verify one is product and one is bundle
+            product_items = [item for item in cart_items if item.product_id is not None]
+            bundle_items = [item for item in cart_items if item.bundle_id is not None]
+            assert len(product_items) == 1
+            assert len(bundle_items) == 1
