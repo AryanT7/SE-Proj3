@@ -19,7 +19,7 @@ def calculate_original_price(app, items):
 class TestBundleService:
     """Unit tests for BundleService class"""
 
-    # Test creating a bundle successfully
+    # Test creating a bundle successfully to test normal flow
     def test_create_bundle_success(self, app, sample_admin, sample_product, sample_product_extra):
         with app.app_context():
             service = BundleService(sample_admin)
