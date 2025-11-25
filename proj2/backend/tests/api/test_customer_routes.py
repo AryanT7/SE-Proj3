@@ -493,3 +493,223 @@ class TestCustomerRoutes:
             assert response.status_code == 404
             body = response.get_json()
             assert "error" in body
+
+    # --- Tests for Cart with Bundles ---
+
+    # Test adding a bundle to cart via API
+    def test_add_bundle_to_cart_success(self, client, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import Products
+            
+            # Calculate original price
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price) * 2
+            
+            # Create a bundle
+            bundle_service = BundleService(sample_admin)
+            bundle = bundle_service.create_bundle(
+                name='API Test Bundle',
+                description='Bundle for API testing',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 2}]
+            )
+            
+            # Add bundle to cart
+            response = client.post(f'/api/customers/{sample_customer}/cart', json={
+                'bundle_id': bundle.id,
+                'quantity': 1
+            })
+            
+            assert response.status_code == 201
+            data = json.loads(response.data)
+            assert data['message'] == 'Item added to cart'
+            assert 'cart_item_id' in data
+
+    # Test adding bundle with invalid ID
+    def test_add_bundle_to_cart_not_found(self, client, sample_customer):
+        response = client.post(f'/api/customers/{sample_customer}/cart', json={
+            'bundle_id': 99999,
+            'quantity': 1
+        })
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert 'error' in data
+
+    # Test adding both product and bundle (should fail)
+    def test_add_cart_item_both_product_and_bundle_error(self, client, sample_customer, sample_product, sample_admin):
+        with client.application.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import Products
+            
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price)
+            
+            bundle_service = BundleService(sample_admin)
+            bundle = bundle_service.create_bundle(
+                name='Test Bundle',
+                description='Test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            response = client.post(f'/api/customers/{sample_customer}/cart', json={
+                'product_id': sample_product,
+                'bundle_id': bundle.id,
+                'quantity': 1
+            })
+            
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert 'error' in data
+
+    # Test getting cart with both products and bundles
+    def test_get_cart_with_products_and_bundles(self, client, app, sample_customer, sample_product, sample_admin):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import Products
+            
+            # Calculate original price
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price)
+            
+            # Create a bundle
+            bundle_service = BundleService(sample_admin)
+            bundle = bundle_service.create_bundle(
+                name='Cart Test Bundle',
+                description='Bundle for cart retrieval test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            # Add product to cart
+            client.post(f'/api/customers/{sample_customer}/cart', json={
+                'product_id': sample_product,
+                'quantity': 2
+            })
+            
+            # Add bundle to cart
+            client.post(f'/api/customers/{sample_customer}/cart', json={
+                'bundle_id': bundle.id,
+                'quantity': 1
+            })
+            
+            # Get cart
+            response = client.get(f'/api/customers/{sample_customer}/cart')
+            
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert 'items' in data
+            assert len(data['items']) == 2
+            
+            # Verify one has product_id and one has bundle_id
+            product_items = [item for item in data['items'] if item.get('product_id')]
+            bundle_items = [item for item in data['items'] if item.get('bundle_id')]
+            
+            assert len(product_items) == 1
+            assert len(bundle_items) == 1
+            assert bundle_items[0]['bundle_id'] == bundle.id
+
+    # Test updating cart item quantity (works for both products and bundles)
+    def test_update_cart_item_bundle_quantity(self, client, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import Products
+            
+            # Calculate original price
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price)
+            
+            # Create bundle and add to cart
+            bundle_service = BundleService(sample_admin)
+            bundle = bundle_service.create_bundle(
+                name='Update Test Bundle',
+                description='Bundle for update test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            add_response = client.post(f'/api/customers/{sample_customer}/cart', json={
+                'bundle_id': bundle.id,
+                'quantity': 1
+            })
+            cart_item_id = json.loads(add_response.data)['cart_item_id']
+            
+            # Update quantity
+            response = client.put(f'/api/cart/{cart_item_id}', json={
+                'quantity': 3
+            })
+            
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['new_quantity'] == 3
+
+    # Test deleting bundle from cart
+    def test_delete_bundle_from_cart(self, client, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import Products
+            
+            # Calculate original price
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price)
+            
+            # Create bundle and add to cart
+            bundle_service = BundleService(sample_admin)
+            bundle = bundle_service.create_bundle(
+                name='Delete Test Bundle',
+                description='Bundle for delete test',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            add_response = client.post(f'/api/customers/{sample_customer}/cart', json={
+                'bundle_id': bundle.id,
+                'quantity': 1
+            })
+            cart_item_id = json.loads(add_response.data)['cart_item_id']
+            
+            # Delete cart item
+            response = client.delete(f'/api/cart/{cart_item_id}')
+            
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['message'] == 'Cart item deleted'
+            
+            # Verify item is deleted
+            get_response = client.get(f'/api/customers/{sample_customer}/cart')
+            cart_data = json.loads(get_response.data)
+            assert len(cart_data['items']) == 0
+
+    # Test adding unavailable bundle to cart
+    def test_add_unavailable_bundle_to_cart_error(self, client, app, sample_customer, sample_admin, sample_product):
+        with app.app_context():
+            from app.services.bundle_service import BundleService
+            from app.models import Products
+            
+            # Calculate original price
+            product = Products.query.get(sample_product)
+            original_price = float(product.unit_price)
+            
+            # Create bundle
+            bundle_service = BundleService(sample_admin)
+            bundle = bundle_service.create_bundle(
+                name='Unavailable Bundle',
+                description='Will be unavailable',
+                original_price=original_price,
+                product_items=[{'product_id': sample_product, 'quantity': 1}]
+            )
+            
+            # Toggle to unavailable
+            bundle_service.toggle_availability(bundle.id)
+            
+            # Try to add to cart
+            response = client.post(f'/api/customers/{sample_customer}/cart', json={
+                'bundle_id': bundle.id,
+                'quantity': 1
+            })
+            
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert 'error' in data
