@@ -6,21 +6,11 @@ db_name = os.getenv("DB_NAME", "movie_munchers_dev")
 database = get_database(db_name)
 cursor_object = database.cursor()
 
-from argon2.low_level import hash_secret, Type
+from argon2 import PasswordHasher
 
-# Helper function for deterministic password hashing 
-def deterministic_hash(password):
-    return hash_secret(
-        secret=password.encode(),
-        salt=b"fixedsalt",
-        time_cost=3,
-        memory_cost=2**16,
-        parallelism=4,
-        hash_len=32,
-        type=Type.ID
-    ).decode()
-
-ADMIN_HASH = deterministic_hash("password")
+# Helper function for password hashing using same method as backend
+ph = PasswordHasher()
+ADMIN_HASH = ph.hash("password")
 
 # HELPER FUNCTION FOR EXECUTING SQL QUERIES
 def insert(query, values):
