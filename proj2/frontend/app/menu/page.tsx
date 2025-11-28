@@ -4,6 +4,154 @@ import Cookies from 'js-cookie';
 import Navbar from '../components/Navbar';
 
 /**
+ * AI Recommendation Panel component
+ * Displays personalized recommendations from Mistral LLM
+ * Only shown to customers
+ */
+const RecommendationPanel = ({ userId, userRole }: { userId: string | undefined; userRole: string | null }) => {
+  const [recommendation, setRecommendation] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchRecommendations = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/customers/${userId}/recommendations`,
+          {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch recommendations');
+        }
+
+        const data = await response.json();
+        
+        if (data.type === 'text' && data.recommendations) {
+          setRecommendation(data.recommendations);
+        } else {
+          setError('No recommendations available');
+        }
+      } catch (err) {
+        console.error('Failed to fetch recommendations:', err);
+        setError('Unable to load recommendations at this time');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [userId]);
+
+  // Only show for customers
+  if (!userId || userRole !== 'customer') {
+    return null;
+  }
+
+  return (
+    <div className="mb-8 bg-gradient-to-r from-purple-50 via-pink-50 to-indigo-50 rounded-2xl shadow-xl border-2 border-purple-200 overflow-hidden">
+      {/* Header */}
+      <div 
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-purple-100 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-6 w-6 text-white" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" 
+              />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-purple-800">
+              AI-Powered Recommendations
+            </h3>
+            <p className="text-xs text-purple-600">
+              Personalized suggestions just for you
+            </p>
+          </div>
+        </div>
+        <button className="text-purple-600 hover:text-purple-800 transition-colors">
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Content */}
+      {isExpanded && (
+        <div className="px-4 pb-4">
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+              <span className="ml-3 text-purple-600">Generating recommendations...</span>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          {recommendation && !loading && !error && (
+            <div className="p-4 bg-white/80 rounded-lg border border-purple-200">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-1">
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5 text-purple-500" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" 
+                    />
+                  </svg>
+                </div>
+                <p className="text-gray-700 leading-relaxed flex-1">
+                  {recommendation}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
  * BundleCard component to display snack bundle information.
  */
 const BundleCard = ({ bundle, onAddBundle, isAdmin, onEdit, onDelete }: any) => (
@@ -141,18 +289,30 @@ const ProductCard = ({ product, supplierName, onAddToCart }: any) => (
 const App = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [bundles, setBundles] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [supplierMap, setSupplierMap] = useState<any>({}); // <-- ADD THIS LINE
   const [isAdmin, setIsAdmin] = useState(false);
   const [showBundleForm, setShowBundleForm] = useState(false);
   const [editingBundle, setEditingBundle] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [bundleFormData, setBundleFormData] = useState({
     name: '',
     description: '',
     original_price: 0,
     product_items: [] as { product_id: number; quantity: number }[],
   });
+
+
+  // Add this useEffect to get the user ID from cookies:
+  useEffect(() => {
+    const id = Cookies.get('user_id');
+    setUserId(id || undefined);
+    if (id) {
+      fetchUserRole();
+    }
+  }, []);
 
   // Helper function for fetching with exponential backoff
   const exponentialBackoffFetch = async (url: any, options: any, retries = 3) => {
@@ -315,6 +475,26 @@ const App = () => {
       console.error("Failed to fetch products:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Fetch user role from the backend
+   */
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/users/me', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role || null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user role:', err);
     }
   };
 
@@ -498,6 +678,9 @@ const App = () => {
             Explore our curated selection of products. Inventory status is updated in real-time.
           </p>
         </header>
+
+        {/*THE RECOMMENDATION PANEL HERE */}
+        <RecommendationPanel userId={userId} userRole={userRole} />
 
         {/* Bundle Creation Form (Admin Only) */}
         {isAdmin && showBundleForm && (
