@@ -5,8 +5,11 @@ from flask_cors import CORS
 from datetime import timedelta
 from flasgger import Swagger
 import os 
-
 from .swagger_config import swagger_template
+
+from dotenv import load_dotenv
+load_dotenv() # This loads the variables
+
 
 # Global extension instances; initialized later inside the factory via init_app.
 db = SQLAlchemy()

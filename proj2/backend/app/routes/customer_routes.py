@@ -9,6 +9,54 @@ customer_bp = Blueprint('customer', __name__, url_prefix='/api')
 # CustomerService instance
 customer_service = CustomerService()
 
+@customer_bp.route('/customers/<int:user_id>/recommendations', methods=['GET'])
+def get_recommendations(user_id):
+    """
+    Get Personalized Recommendations
+    ---
+    tags: [Product Catalog]
+    description: Retrieves personalized menu recommendations based on user's order history using AI.
+    parameters:
+      - in: path
+        name: user_id
+        type: integer
+        required: true
+        description: The ID of the customer user.
+    responses:
+      200:
+        description: Recommendations retrieved successfully
+        schema:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [text, items]
+            recommendations:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      type: {type: string, enum: [product, bundle]}
+                      id: {type: integer}
+                      name: {type: string}
+                      category: {type: string}
+                      price: {type: number}
+                      reason: {type: string}
+      404: {description: Customer not found}
+      500: {description: Server error}
+    """
+    try:
+        from app.services.recommendation_service import RecommendationService
+        recommendation_service = RecommendationService()
+        recommendations = recommendation_service.get_recommendations(user_id=user_id)
+        return jsonify(recommendations), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @customer_bp.route('/customers', methods=['POST'])
 def create_customer():

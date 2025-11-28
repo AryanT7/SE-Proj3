@@ -1,5 +1,7 @@
 import mysql.connector
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # Schema table names
 tables = ['theatres', 'auditoriums', 'seats', 'users', 'staff', 'movies', 'movie_showings',
@@ -36,6 +38,7 @@ def get_database(db_name):
     my_host = os.getenv('DB_HOST', 'localhost')
     my_user = os.getenv('DB_USER', 'root')
     my_password = os.getenv('DB_PASSWORD', '')
+
 
     # Create the database if it does not exist (admin connection)
     root = mysql.connector.connect(
