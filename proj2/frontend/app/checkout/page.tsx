@@ -13,8 +13,7 @@ const DELIVERY_FEE = 5.0;
 type Item = {
   item_id: string;
   quantity: string;
-  product?: Product;
-  bundle?: Bundle;
+  product: Product;
 };
 
 type Product = {
@@ -28,15 +27,6 @@ type Product = {
   discount: number;
   is_available: boolean;
   supplier: IDtoSupplier;
-};
-
-type Bundle = {
-  id: string;
-  name: string;
-  description: string;
-  original_price: number;
-  total_price: number;
-  is_available: boolean;
 };
 
 type Supplier = {
@@ -65,7 +55,6 @@ export default function CheckoutPage() {
   // --- STATE ---
   const [items, setItems] = useState<Item[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [bundles, setBundles] = useState<Bundle[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [suppliers, setSuppliers] = useState<IDtoSupplier[]>([]);
 
@@ -351,29 +340,12 @@ export default function CheckoutPage() {
       const response = await fetch(`${API_BASE_URL}/products/menu`, {
         credentials: 'include',
       });
-      if (!response.ok) throw new Error('Failed to fetch products');
+      if (!response.ok) throw new Error('Failed to fetch products.');
       const data = await response.json();
       setProducts(data.products);
     } catch (error) {
       console.error('Error loading products:', error);
       setError('Could not load product data.');
-    }
-  };
-
-  /**
-   * bundles -> state
-   */
-  const loadBundles = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/bundles`, {
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch bundles');
-      const data = await response.json();
-      setBundles(data.bundles);
-    } catch (error) {
-      console.error('Error loading bundles:', error);
-      setError('Could not load bundle data.');
     }
   };
 
@@ -386,11 +358,10 @@ export default function CheckoutPage() {
     if (!customerId) return;
 
     const currentProducts = products;
-    const currentBundles = bundles;
 
-    if (currentProducts.length === 0 && currentBundles.length === 0) {
+    if (currentProducts.length === 0) {
       console.warn(
-        'Attempted to load cart items before products and bundles were populated.'
+        'Attempted to load cart items before products list was populated.'
       );
       return;
     }
@@ -412,48 +383,23 @@ export default function CheckoutPage() {
 
       const mappedItems: Item[] = data.items
         .map((cartItem: any) => {
-          // Handle product items
-          if (cartItem.product_id) {
-            const cartProductIdString = String(cartItem.product_id);
-            const productDetail = currentProducts.find(
-              (p) => String(p.id) === cartProductIdString
+          const cartProductIdString = String(cartItem.product_id);
+          const productDetail = currentProducts.find(
+            (p) => String(p.id) === cartProductIdString
+          );
+
+          if (!productDetail) {
+            console.warn(
+              `Product ID ${cartItem.product_id} not found in product list. Skipping item.`
             );
-
-            if (!productDetail) {
-              console.warn(
-                `Product ID ${cartItem.product_id} not found in product list. Skipping item.`
-              );
-              return null;
-            }
-
-            return {
-              item_id: String(cartItem.id),
-              quantity: String(cartItem.quantity),
-              product: productDetail,
-            } as Item;
-          }
-          // Handle bundle items
-          else if (cartItem.bundle_id) {
-            const cartBundleIdString = String(cartItem.bundle_id);
-            const bundleDetail = currentBundles.find(
-              (b) => String(b.id) === cartBundleIdString
-            );
-
-            if (!bundleDetail) {
-              console.warn(
-                `Bundle ID ${cartItem.bundle_id} not found in bundle list. Skipping item.`
-              );
-              return null;
-            }
-
-            return {
-              item_id: String(cartItem.id),
-              quantity: String(cartItem.quantity),
-              bundle: bundleDetail,
-            } as Item;
+            return null;
           }
 
-          return null;
+          return {
+            item_id: String(cartItem.id),
+            quantity: String(cartItem.quantity),
+            product: productDetail,
+          } as Item;
         })
         .filter((item: Item | null): item is Item => item !== null);
 
@@ -511,25 +457,32 @@ export default function CheckoutPage() {
         // ignore
       }
     })();
-    loadBundles();
   }, []);
 
+  // Clear any loaded puzzle data when the coupon code changes
   useEffect(() => {
-    if (products.length > 0 || bundles.length > 0) {
+    // When user switches coupon selection, remove any previously-loaded puzzle
+    // so the modal won't display stale python code from another coupon.
+    setPuzzleScript(null);
+    setPuzzleQuestion(null);
+    setPuzzleToken(null);
+    setPuzzleAnswer('');
+    setShowPuzzleModal(false);
+  }, [couponCode]);
+
+  useEffect(() => {
+    if (products.length > 0) {
       loadItems();
       loadPaymentMethods();
       setIsLoading(false);
     }
-  }, [products, bundles]);
+  }, [products]);
 
   // --- COMPUTED VALUES (Unchanged) ---
   const total = useMemo(() => {
     return items.reduce((acc, item) => {
+      const price = item.product?.unit_price || 0;
       const quantity = parseInt(item.quantity) || 0;
-      // Use bundle.total_price for bundles, product.unit_price for products
-      const price = item.bundle 
-        ? (item.bundle.total_price || 0) 
-        : (item.product?.unit_price || 0);
       return acc + price * quantity;
     }, 0);
   }, [items]);
@@ -546,21 +499,12 @@ export default function CheckoutPage() {
 
   // --- HELPER FUNCTIONS (Unchanged) ---
   const getProductData = (item: Item) => {
-    if (item.bundle) {
-      // Handle bundle items
-      const name = item.bundle.name || 'Unknown Bundle';
-      const unitPrice = item.bundle.total_price || 0; // Use discounted price
-      const quantity = parseInt(item.quantity) || 0;
-      const itemId = item.item_id;
-      return { itemId, name, unitPrice, quantity };
-    } else {
-      // Handle regular product items
-      const name = item.product?.name || 'Unknown Product';
-      const unitPrice = item.product?.unit_price || 0;
-      const quantity = parseInt(item.quantity) || 0;
-      const itemId = item.item_id;
-      return { itemId, name, unitPrice, quantity };
-    }
+    const name = item.product?.name || 'Unknown Product';
+    const unitPrice = item.product?.unit_price || 0;
+    const quantity = parseInt(item.quantity) || 0;
+    const itemId = item.item_id;
+
+    return { itemId, name, unitPrice, quantity };
   };
 
   const getPaymentData = (method: PaymentMethod) => {
@@ -691,7 +635,7 @@ export default function CheckoutPage() {
                           {data.name}
                         </p>
                         <p className="text-sm text-gray-500">
-                          ${data.unitPrice.toFixed(2)}
+                          ${data.unitPrice.toFixed(2)} each
                         </p>
                       </div>
 

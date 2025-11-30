@@ -140,9 +140,7 @@ def populate_db():
             (2, 2)])
 
    # Coupons seed data (unlocked by puzzles with difficulty levels)
-   insert("""INSERT INTO coupons (code, difficulty, discount_percent, is_active) VALUES (%s, %s, %s, %s)""",
-               [('PUZZLE10', 1, 10.00, True),
-                ('MASTER50', 8, 50.00, True)])
+   # Removed hardcoded coupons 'PUZZLE10' and 'MASTER50' to rely on puzzle-driven coupon creation below
 
    # Scan code_puzzle folders and insert into code_puzzles table
    base_dir = os.path.join(os.path.dirname(__file__), 'app', 'code_puzzle')
@@ -177,10 +175,31 @@ def populate_db():
                continue
 
    if puzzles_to_insert:
-      insert("""INSERT INTO code_puzzles (folder, name, difficulty, script, answer, is_active) VALUES (%s, %s, %s, %s, %s, %s)""",
-           puzzles_to_insert)
+      # Upsert each puzzle: update existing rows that match folder+name, otherwise insert new
+      try:
+         for folder, name, diff, script, answer, is_active in puzzles_to_insert:
+            cursor_object.execute(
+               "SELECT id FROM code_puzzles WHERE folder=%s AND name=%s",
+               (folder, name)
+            )
+            existing = cursor_object.fetchone()
+            if existing:
+               pid = existing[0]
+               cursor_object.execute(
+                  "UPDATE code_puzzles SET difficulty=%s, script=%s, answer=%s, is_active=%s WHERE id=%s",
+                  (diff, script, answer, is_active, pid)
+               )
+            else:
+               cursor_object.execute(
+                  "INSERT INTO code_puzzles (folder, name, difficulty, script, answer, is_active) VALUES (%s, %s, %s, %s, %s, %s)",
+                  (folder, name, diff, script, answer, is_active)
+               )
+         database.commit()
+      except Exception:
+         # Non-fatal: don't stop DB seeding if puzzles fail to upsert
+         pass
 
-      # After inserting puzzles, create a coupon per puzzle (avoid duplicates)
+      # After ensuring puzzles are in the DB, create a coupon per puzzle (avoid duplicates)
       try:
          cursor_object.execute("SELECT code FROM coupons")
          existing_codes = set(r[0] for r in cursor_object.fetchall())
