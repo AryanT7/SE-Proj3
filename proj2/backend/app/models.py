@@ -201,6 +201,11 @@ class Deliveries(db.Model):
     coupon_id = db.Column(db.BigInteger, nullable=True)
     coupon_code = db.Column(db.String(64), nullable=True)
     discount_amount = db.Column(DECIMAL(12,2), nullable=False, server_default=u'0.00')
+    # Donation fields
+    ngo_id = db.Column(db.Integer, nullable=True)
+    ngo_name = db.Column(db.String(128), nullable=True)
+    donation_amount = db.Column(DECIMAL(12,2), nullable=False, server_default=u'0.00')
+    donation_percentage = db.Column(DECIMAL(5,2), nullable=True)
     delivery_time = db.Column(db.DateTime, server_default = 'CURRENT_TIMESTAMP', server_onupdate = 'CURRENT_TIMESTAMP', nullable = False)
     delivery_status = db.Column(db.Enum('pending', 'accepted', 'in_progress', 'ready_for_pickup', 'in_transit', 'delivered', 'fulfilled', 'cancelled'), server_default = 'pending', nullable = False)
     is_rated = db.Column(db.Boolean, server_default = expression.false(), nullable = False)
@@ -209,7 +214,7 @@ class Deliveries(db.Model):
     __table_args__ = (db.CheckConstraint('total_price >= 0.00', name = 'check_total_price'),)
 
     def __repr__(self):
-        return f'<Deliveries id = {self.id} driver_id = {self.driver_id} customer_showing_id = {self.customer_showing_id} payment_method_id = {self.payment_method_id} staff_id = {self.staff_id} payment_status = {self.payment_status} total_price = {self.total_price} coupon_code = {self.coupon_code} discount_amount = {self.discount_amount} delivery_time = {self.delivery_time} delivery_status = {self.delivery_status}>'
+        return f'<Deliveries id = {self.id} driver_id = {self.driver_id} customer_showing_id = {self.customer_showing_id} payment_method_id = {self.payment_method_id} staff_id = {self.staff_id} payment_status = {self.payment_status} total_price = {self.total_price} coupon_code = {self.coupon_code} discount_amount = {self.discount_amount} ngo_name = {self.ngo_name} donation_amount = {self.donation_amount} delivery_time = {self.delivery_time} delivery_status = {self.delivery_status}>'
     
 class DeliveryItems(db.Model):
     __tablename__ = 'delivery_items'
