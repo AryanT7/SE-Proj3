@@ -40,6 +40,12 @@ interface DeliveryDetails {
     theatre_address: string;
     movie_title: string;
     driver_name: string;
+    donation?: {
+        ngo_id: number | null;
+        ngo_name: string | null;
+        donation_amount: number;
+        donation_percentage: number | null;
+    } | null;
 }
 
 export default function CustomerDashboardPage() {
@@ -541,6 +547,24 @@ export default function CustomerDashboardPage() {
                             <strong>Total Price:</strong> $
                             {details.total_price.toFixed(2)}
                         </p>
+                        {details.donation && (
+                            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <p className="font-semibold text-blue-800 mb-1">
+                                    Donation Made
+                                </p>
+                                <p className="text-sm text-blue-700">
+                                    <strong>NGO:</strong> {details.donation.ngo_name}
+                                </p>
+                                <p className="text-sm text-blue-700">
+                                    <strong>Amount:</strong> ${details.donation.donation_amount.toFixed(2)}
+                                </p>
+                                {details.donation.donation_percentage && (
+                                    <p className="text-sm text-blue-700">
+                                        <strong>Percentage:</strong> {details.donation.donation_percentage}%
+                                    </p>
+                                )}
+                            </div>
+                        )}
                         {details.delivery_time && (
                             <p>
                                 <strong>Delivery Time:</strong>{" "}
