@@ -14,8 +14,19 @@ ADMIN_HASH = ph.hash("password")
 
 # HELPER FUNCTION FOR EXECUTING SQL QUERIES
 def insert(query, values):
-    cursor_object.executemany(query, values)
-    database.commit()
+   try:
+      cursor_object.executemany(query, values)
+      database.commit()
+      try:
+         count = len(values)
+      except Exception:
+         count = 'unknown'
+      q_preview = ' '.join(str(query).split())[:120]
+      print(f"[seed] Executed insert: {q_preview} -- rows={count}")
+   except Exception as e:
+      print(f"[seed] Insert failed: {e} -- query={query}")
+      database.rollback()
+      raise
 
 # Function to populate existing database
 def populate_db():
@@ -140,14 +151,26 @@ def populate_db():
             (2, 2)])
 
    # Coupons seed data (unlocked by puzzles with difficulty levels)
-   insert("""INSERT INTO coupons (code, difficulty, discount_percent, is_active) VALUES (%s, %s, %s, %s)""",
-               [('PUZZLE10', 1, 10.00, True),
-                ('MASTER50', 8, 50.00, True)])
+   # Removed hardcoded coupons 'PUZZLE10' and 'MASTER50' to rely on puzzle-driven coupon creation below
 
    # Scan code_puzzle folders and insert into code_puzzles table
-   base_dir = os.path.join(os.path.dirname(__file__), 'app', 'code_puzzle')
+   # Support multiple roots: environment-configurable, production app folder, and test fixtures
+   env_root = os.getenv('CODE_PUZZLE_ROOT')
+   roots = []
+   if env_root:
+      roots.append(env_root)
+   # production location
+   roots.append(os.path.join(os.path.dirname(__file__), 'app', 'code_puzzle'))
+   # test fixtures (moved earlier during development)
+   roots.append(os.path.join(os.path.dirname(__file__), 'tests', 'test_code_puzzle'))
+
    puzzles_to_insert = []
-   if os.path.exists(base_dir):
+   seen = set()
+   for base_dir in roots:
+      if not base_dir or not os.path.exists(base_dir):
+         print(f"[seed] puzzle root not found: {base_dir}")
+         continue
+      print(f"[seed] scanning puzzle root: {base_dir}")
       for folder in ['easy', 'medium', 'hard']:
          folder_path = os.path.join(base_dir, folder)
          if not os.path.isdir(folder_path):
@@ -156,6 +179,10 @@ def populate_db():
             if not fname.endswith('.py'):
                continue
             name = os.path.splitext(fname)[0]
+            key = (folder, name)
+            if key in seen:
+               continue
+            seen.add(key)
             py_path = os.path.join(folder_path, fname)
             txt_path = os.path.join(folder_path, name + '.txt')
             try:
@@ -173,41 +200,68 @@ def populate_db():
                else:
                   diff = 8
                puzzles_to_insert.append((folder, name, diff, script, answer, True))
+               print(f"[seed] found puzzle file: {folder}/{name} (diff={diff})")
             except Exception:
                continue
 
    if puzzles_to_insert:
-      insert("""INSERT INTO code_puzzles (folder, name, difficulty, script, answer, is_active) VALUES (%s, %s, %s, %s, %s, %s)""",
-           puzzles_to_insert)
-
-      # After inserting puzzles, create a coupon per puzzle (avoid duplicates)
+      # Upsert each puzzle: update existing rows that match folder+name, otherwise insert new
       try:
-         cursor_object.execute("SELECT code FROM coupons")
-         existing_codes = set(r[0] for r in cursor_object.fetchall())
-
-         cursor_object.execute("SELECT id, folder, name, difficulty FROM code_puzzles")
-         rows = cursor_object.fetchall()
-         coupons_for_puzzles = []
-         for r in rows:
-            pid, folder, name, diff = r[0], r[1], r[2], r[3]
-            code = f"PUZ{pid}_{folder}_{name}".upper()
-            if code in existing_codes:
-               continue
-            # map difficulty to discount: easy->10, medium->25, hard->50
-            if diff <= 3:
-               discount = 10.00
-            elif diff <= 6:
-               discount = 25.00
+         print(f"[seed] upserting {len(puzzles_to_insert)} puzzles into DB")
+         for folder, name, diff, script, answer, is_active in puzzles_to_insert:
+            cursor_object.execute(
+               "SELECT id FROM code_puzzles WHERE folder=%s AND name=%s",
+               (folder, name)
+            )
+            existing = cursor_object.fetchone()
+            if existing:
+               pid = existing[0]
+               cursor_object.execute(
+                  "UPDATE code_puzzles SET difficulty=%s, script=%s, answer=%s, is_active=%s WHERE id=%s",
+                  (diff, script, answer, is_active, pid)
+               )
+               print(f"[seed] updated puzzle id={pid} {folder}/{name}")
             else:
-               discount = 50.00
-            coupons_for_puzzles.append((code, diff, discount, True))
-
-         if coupons_for_puzzles:
-            insert("""INSERT INTO coupons (code, difficulty, discount_percent, is_active) VALUES (%s, %s, %s, %s)""",
-                   coupons_for_puzzles)
+               cursor_object.execute(
+                  "INSERT INTO code_puzzles (folder, name, difficulty, script, answer, is_active) VALUES (%s, %s, %s, %s, %s, %s)",
+                  (folder, name, diff, script, answer, is_active)
+               )
+               print(f"[seed] inserted puzzle {folder}/{name}")
+         database.commit()
       except Exception:
-         # non-fatal; continue
+         # Non-fatal: don't stop DB seeding if puzzles fail to upsert
          pass
+
+   # finished upserting puzzles
 
 # Call function to populate database
 populate_db()
+
+# Ensure coupons exist for any puzzles already in the database
+try:
+   cursor_object.execute("SELECT code FROM coupons")
+   existing_codes = set(r[0] for r in cursor_object.fetchall())
+
+   cursor_object.execute("SELECT id, folder, name, difficulty FROM code_puzzles")
+   rows = cursor_object.fetchall()
+   coupons_for_puzzles = []
+   for r in rows:
+      pid, folder, name, diff = r[0], r[1], r[2], r[3]
+      code = f"PUZ{pid}_{folder}_{name}".upper()
+      if code in existing_codes:
+         continue
+      # map difficulty to discount: easy->10, medium->25, hard->50
+      if diff <= 3:
+         discount = 10.00
+      elif diff <= 6:
+         discount = 25.00
+      else:
+         discount = 50.00
+      coupons_for_puzzles.append((code, diff, discount, True))
+
+   if coupons_for_puzzles:
+      insert("""INSERT INTO coupons (code, difficulty, discount_percent, is_active) VALUES (%s, %s, %s, %s)""",
+             coupons_for_puzzles)
+except Exception:
+   # non-fatal; continue
+   pass

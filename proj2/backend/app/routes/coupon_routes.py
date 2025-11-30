@@ -87,7 +87,9 @@ def apply_coupon():
                 else:
                     # filesystem based token: <folder>/<name>
                     puzzle_relpath = decoded
-                    puzzle_dir = os.path.join(current_app.root_path, 'code_puzzle')
+                    # Allow test override of puzzle root
+                    puzzle_root = current_app.config.get('CODE_PUZZLE_ROOT', os.path.join(current_app.root_path, 'code_puzzle'))
+                    puzzle_dir = os.path.join(puzzle_root)
                     answer_path = os.path.join(puzzle_dir, puzzle_relpath + '.txt')
                     if not os.path.exists(answer_path):
                         return jsonify({'error': 'Puzzle answer file not found'}), 400
@@ -127,7 +129,10 @@ def get_coupon_puzzle(code):
         else:
             folder = 'hard'
 
-        puzzle_dir = os.path.join(current_app.root_path, 'code_puzzle', folder)
+        # Allow tests to override the puzzle root directory via app config
+        puzzle_root = current_app.config.get('CODE_PUZZLE_ROOT', os.path.join(current_app.root_path, 'code_puzzle'))
+        puzzle_dir = os.path.join(puzzle_root, folder)
+
         if not os.path.exists(puzzle_dir):
             return jsonify({'error': 'Puzzle directory not found on server'}), 500
 
