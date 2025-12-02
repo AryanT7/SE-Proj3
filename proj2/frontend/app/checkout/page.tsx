@@ -73,6 +73,11 @@ export default function CheckoutPage() {
   const [puzzleAnswer, setPuzzleAnswer] = useState<string>('');
   const [skipPuzzle, setSkipPuzzle] = useState<boolean>(false);
   const [showManualCode, setShowManualCode] = useState<boolean>(false);
+  const [ngos, setNgos] = useState<{id: number; name: string; cause: string; description: string}[]>([]);
+  const [selectedNgoId, setSelectedNgoId] = useState<number | null>(null);
+  const [donationType, setDonationType] = useState<'amount' | 'percentage'>('percentage');
+  const [donationAmount, setDonationAmount] = useState<number>(0);
+  const [donationPercentage, setDonationPercentage] = useState<number>(1.5);
 
   // --- API HANDLERS ---
 
@@ -107,7 +112,7 @@ export default function CheckoutPage() {
       } else {
         console.error('Failed to fetch showings.');
       }
-  console.debug('checkoutPay -> payload', { appliedCoupon, couponCode, puzzleToken, puzzleAnswer, skipPuzzle });
+  console.debug('checkoutPay -> payload', { appliedCoupon, couponCode, puzzleToken, puzzleAnswer, skipPuzzle, selectedNgoId, donationType, donationAmount, donationPercentage });
   const response = await fetch(`${API_BASE_URL}/deliveries`, {
         method: 'POST',
         headers: {
@@ -123,6 +128,10 @@ export default function CheckoutPage() {
           // If a coupon was already applied/verified via the coupon flow,
           // instruct the backend to skip puzzle verification when creating the delivery.
           skip_puzzle: appliedCoupon ? true : !!skipPuzzle,
+          // donation fields
+          ngo_id: selectedNgoId || null,
+          donation_amount: selectedNgoId && donationType === 'amount' ? donationAmount : null,
+          donation_percentage: selectedNgoId && donationType === 'percentage' ? donationPercentage : null,
         }),
         credentials: 'include',
       });
@@ -441,11 +450,26 @@ export default function CheckoutPage() {
     }
   };
 
+  // --- LOAD NGOs ---
+  const loadNgos = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/ngos`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch NGOs');
+      const data = await response.json();
+      setNgos(data.ngos || []);
+    } catch (error) {
+      console.error('Error loading NGOs:', error);
+    }
+  };
+
   // --- EFFECTS (Unchanged) ---
   useEffect(() => {
     setIsLoading(true);
     loadSuppliers();
     loadProducts();
+    loadNgos();
     // load available coupons
     (async () => {
       try {
@@ -487,6 +511,20 @@ export default function CheckoutPage() {
     }, 0);
   }, [items]);
   const effectiveTotal = appliedCoupon ? appliedCoupon.new_total : total;
+  
+  // Calculate donation amount based on type
+  // This matches the backend calculation
+  const calculatedDonationAmount = useMemo(() => {
+    if (!selectedNgoId) return 0;
+    if (donationType === 'amount') {
+      return donationAmount;
+    } else {
+      // Percentage-based: calculate from original total (before coupon discount)
+      return (total * donationPercentage) / 100;
+    }
+  }, [selectedNgoId, donationType, donationAmount, donationPercentage, total]);
+  
+  const finalTotal = effectiveTotal + calculatedDonationAmount;
 
   const selectedPaymentMethod = useMemo(() => {
     return paymentMethods.find((pm) => pm.id === selectedPaymentMethodId);
@@ -494,8 +532,17 @@ export default function CheckoutPage() {
 
   const hasSufficientFunds = useMemo(() => {
     if (!selectedPaymentMethod) return false;
-    return selectedPaymentMethod.balance >= effectiveTotal;
-  }, [selectedPaymentMethod, effectiveTotal]);
+    return selectedPaymentMethod.balance >= finalTotal;
+  }, [selectedPaymentMethod, finalTotal]);
+  
+  // Reset donation inputs when NGO changes
+  useEffect(() => {
+    if (!selectedNgoId) {
+      setDonationAmount(0);
+      setDonationPercentage(1.5);
+      setDonationType('percentage');
+    }
+  }, [selectedNgoId]);
 
   // --- HELPER FUNCTIONS (Unchanged) ---
   const getProductData = (item: Item) => {
@@ -761,13 +808,13 @@ export default function CheckoutPage() {
                               <p className="font-semibold">
                                 Card ending in {data.lastFour}
                               </p>
-                              <p className="text-sm text-gray-500">
-                                Expires {data.expMonth}/{data.expYear}
-                              </p>
+                          <p className="text-sm text-gray-500">
+                            Expires {data.expMonth}/{data.expYear}
+                          </p>
                             </div>
                           </div>
                           <p
-                            className={`text-sm font-medium ${data.balance < effectiveTotal
+                            className={`text-sm font-medium ${data.balance < finalTotal
                               ? 'text-red-500'
                               : 'text-green-600'
                               }`}
@@ -788,7 +835,7 @@ export default function CheckoutPage() {
                     <strong className="mr-1">Insufficient funds:</strong>{' '}
                     Selected card balance ($
                     {selectedPaymentMethod.balance.toFixed(2)}) is less than the
-                    total order amount (${effectiveTotal.toFixed(2)}). Please select
+                    total order amount (${finalTotal.toFixed(2)}). Please select
                     another method or add funds.
                   </p>
                 </div>
@@ -854,10 +901,146 @@ export default function CheckoutPage() {
                   </>
                 )}
 
+                {selectedNgoId && (
+                  <div className="flex justify-between text-sm text-blue-700 pt-2">
+                    <span>Donation {donationType === 'percentage' ? `(${donationPercentage}%)` : '(Fixed Amount)'}</span>
+                    <span>+ ${calculatedDonationAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between font-extrabold text-2xl pt-4 border-t border-gray-200 mt-4">
                   <span>Total Due</span>
-                  <span className="text-indigo-600">${effectiveTotal.toFixed(2)}</span>
+                  <span className="text-indigo-600">${finalTotal.toFixed(2)}</span>
                 </div>
+              </div>
+
+              {/* Donation Section */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Make a Donation (Optional)
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Select an NGO and choose to donate a fixed amount or a percentage of your order
+                </p>
+                
+                <select
+                  value={selectedNgoId || ''}
+                  onChange={(e) => setSelectedNgoId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full rounded-md border p-2 mb-3"
+                >
+                  <option value="">-- Select an NGO --</option>
+                  {ngos.map((ngo) => (
+                    <option key={ngo.id} value={ngo.id}>
+                      {ngo.name} - {ngo.cause}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedNgoId && (
+                  <div className="mt-3 space-y-3">
+                    {/* Donation Type Selection */}
+                    <div className="flex gap-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="donationType"
+                          value="percentage"
+                          checked={donationType === 'percentage'}
+                          onChange={(e) => setDonationType(e.target.value as 'percentage')}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Percentage</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="donationType"
+                          value="amount"
+                          checked={donationType === 'amount'}
+                          onChange={(e) => setDonationType(e.target.value as 'amount')}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Fixed Amount</span>
+                      </label>
+                    </div>
+
+                    {/* Percentage Input */}
+                    {donationType === 'percentage' && (
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Donation Percentage: {donationPercentage}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={donationPercentage}
+                          onChange={(e) => setDonationPercentage(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>0%</span>
+                          <span>100%</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={donationPercentage}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val >= 0 && val <= 100) {
+                              setDonationPercentage(val);
+                            }
+                          }}
+                          className="w-full mt-2 rounded-md border p-2 text-sm"
+                          placeholder="Enter percentage"
+                        />
+                      </div>
+                    )}
+
+                    {/* Fixed Amount Input */}
+                    {donationType === 'amount' && (
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Donation Amount ($)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={donationAmount}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val >= 0) {
+                              setDonationAmount(val);
+                            } else if (e.target.value === '') {
+                              setDonationAmount(0);
+                            }
+                          }}
+                          className="w-full rounded-md border p-2 text-sm"
+                          placeholder="Enter amount in dollars"
+                        />
+                      </div>
+                    )}
+
+                    {/* Donation Summary */}
+                    {selectedNgoId && calculatedDonationAmount > 0 && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                        <p className="text-xs text-blue-700">
+                          <strong>Donating ${calculatedDonationAmount.toFixed(2)}</strong> to {ngos.find(n => n.id === selectedNgoId)?.name}
+                        </p>
+                        {donationType === 'percentage' && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            ({donationPercentage}% of ${total.toFixed(2)})
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Coupon input */}
@@ -955,7 +1138,7 @@ export default function CheckoutPage() {
                 >
                   {isLoading
                     ? ' Processing Order...'
-                    : ` Pay $${effectiveTotal.toFixed(2)} Now`}
+                    : ` Pay $${finalTotal.toFixed(2)} Now`}
                 </button>
 
                 {/* Status messages for disabled state */}
@@ -966,7 +1149,7 @@ export default function CheckoutPage() {
                 )}
                 {selectedPaymentMethodId && !hasSufficientFunds && (
                   <p className="mt-3 text-sm text-center text-red-500 font-medium">
-                    Insufficient funds on selected card.
+                    Insufficient funds on selected card. Need ${finalTotal.toFixed(2)} but have ${selectedPaymentMethod?.balance.toFixed(2) || '0.00'}.
                   </p>
                 )}
               </div>

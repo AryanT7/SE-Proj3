@@ -17,6 +17,16 @@ class CustomerService:
     and coordinates with user, staff, and driver services.
     """
 
+    # Hardcoded list of NGOs
+    NGOS = [
+        {"id": 1, "name": "Animal Care Foundation", "cause": "Animal Care", "description": "Supporting animal welfare and rescue operations"},
+        {"id": 2, "name": "Elderly Protection Network", "cause": "Abused Elderly", "description": "Protecting and supporting abused elderly individuals"},
+        {"id": 3, "name": "Hope for Children", "cause": "Orphan Children", "description": "Providing care and education for orphaned children"},
+        {"id": 4, "name": "Medical Support Alliance", "cause": "Cancer/HIV Patients", "description": "Supporting cancer and HIV patients with medical care"},
+        {"id": 5, "name": "Disease Relief Fund", "cause": "Disease People", "description": "Helping people affected by various diseases"},
+        {"id": 6, "name": "Homeless Shelter Initiative", "cause": "Homeless", "description": "Providing shelter and support for homeless individuals"}
+    ]
+
     def __init__(self):
         """Initialize dependent services used by customer operations."""
         self.user_service = UserService()
@@ -448,13 +458,13 @@ class CustomerService:
         db.session.commit()
         return True
 
-    def create_delivery(self, customer_showing_id, payment_method_id, coupon_code=None, puzzle_token=None, puzzle_answer=None, skip_puzzle=False):
-        """Create a delivery from a customer's cart, optionally applying a coupon.
+    def create_delivery(self, customer_showing_id, payment_method_id, coupon_code=None, puzzle_token=None, puzzle_answer=None, skip_puzzle=False, ngo_id=None, donation_amount=None, donation_percentage=None):
+        """Create a delivery from a customer's cart, optionally applying a coupon and donation.
 
         This verifies puzzles (DB-backed or filesystem), computes discount_amount,
-        persists coupon metadata on the Delivery, charges the post-discount total
-        from the payment method (using Decimal arithmetic), then finalizes the
-        delivery by decrementing inventory and assigning driver/staff.
+        persists coupon metadata on the Delivery, calculates donation amount (either fixed amount or percentage of total),
+        charges the post-discount total from the payment method (using Decimal arithmetic),
+        then finalizes the delivery by decrementing inventory and assigning driver/staff.
 
         Args:
             customer_showing_id: CustomerShowings id for whom the delivery is made.
@@ -463,6 +473,9 @@ class CustomerService:
             puzzle_token: Optional base64 token referencing a puzzle (db:<id> or path).
             puzzle_answer: Optional answer string for the puzzle.
             skip_puzzle: If True, bypass puzzle verification for this coupon.
+            ngo_id: Optional NGO id for donation.
+            donation_amount: Optional fixed donation amount in dollars.
+            donation_percentage: Optional donation percentage of total (any percentage).
 
         Returns:
             Deliveries: The created and committed delivery record.
@@ -544,6 +557,53 @@ class CustomerService:
             applied_coupon_code = c.code
             current_app.logger.debug(f"Coupon {c.code} found: percent={percent} discount_amount={discount_amount}")
 
+        # Handle donation - either fixed amount or percentage
+        final_donation_amount = decimal.Decimal('0.00')
+        ngo_name = None
+        donation_pct = None
+        
+        if ngo_id:
+            # Validate NGO exists
+            ngo = next((n for n in self.NGOS if n["id"] == ngo_id), None)
+            if not ngo:
+                raise ValueError(f"Invalid NGO id: {ngo_id}")
+            
+            ngo_name = ngo["name"]
+            
+            # Check if donation_amount (fixed) or donation_percentage is provided
+            if donation_amount is not None:
+                # Fixed dollar amount donation
+                try:
+                    final_donation_amount = decimal.Decimal(str(donation_amount))
+                    if final_donation_amount < 0:
+                        raise ValueError("Donation amount cannot be negative")
+                    # Allow 0 as a valid donation (user selected NGO but chose not to donate)
+                except (ValueError, TypeError):
+                    raise ValueError("Invalid donation amount")
+                if final_donation_amount > 0:
+                    current_app.logger.debug(f"Donation: {ngo_name}, Fixed amount = ${final_donation_amount}")
+                else:
+                    current_app.logger.debug(f"Donation: {ngo_name}, No donation (amount = 0)")
+            elif donation_percentage is not None:
+                # Percentage-based donation
+                try:
+                    donation_pct = decimal.Decimal(str(donation_percentage))
+                    if donation_pct < 0 or donation_pct > 100:
+                        raise ValueError("Donation percentage must be between 0 and 100")
+                except (ValueError, TypeError):
+                    raise ValueError("Invalid donation percentage")
+                
+                # Calculate donation amount based on total_price (before coupon discount)
+                final_donation_amount = (total_price * donation_pct) / decimal.Decimal('100.00')
+                if final_donation_amount > 0:
+                    current_app.logger.debug(f"Donation: {ngo_name}, {donation_pct}% = ${final_donation_amount}")
+                else:
+                    current_app.logger.debug(f"Donation: {ngo_name}, No donation (percentage = 0%)")
+            else:
+                # No donation specified - treat as no donation
+                final_donation_amount = decimal.Decimal('0.00')
+                current_app.logger.debug(f"Donation: {ngo_name}, No donation specified")
+
         delivery = Deliveries(
             driver_id=None,
             customer_showing_id=customer_showing.id,
@@ -553,6 +613,10 @@ class CustomerService:
             coupon_id=applied_coupon_id,
             coupon_code=applied_coupon_code,
             discount_amount=discount_amount,
+            ngo_id=ngo_id,
+            ngo_name=ngo_name,
+            donation_amount=final_donation_amount,
+            donation_percentage=donation_pct,
         )
         db.session.add(delivery)
         db.session.flush()
@@ -560,8 +624,10 @@ class CustomerService:
         for item in cart_items:
             delivery_item = DeliveryItems(cart_item_id=item.id, delivery_id=delivery.id)
             db.session.add(delivery_item)
-        post_total = decimal.Decimal(total_price) - decimal.Decimal(discount_amount)
-        current_app.logger.debug(f"Post-discount total to charge: {post_total}")
+        # Calculate final total: total_price - discount_amount + donation_amount
+        # Note: donation is added to the charge, not subtracted
+        post_total = decimal.Decimal(total_price) - decimal.Decimal(discount_amount) + decimal.Decimal(final_donation_amount)
+        current_app.logger.debug(f"Post-discount total to charge (including donation): {post_total}")
         was_charged = self.charge_payment_method(payment_method_id=payment_method.id, total_price=post_total)
         if not was_charged:
             db.session.rollback()
@@ -765,6 +831,12 @@ class CustomerService:
             "theatre_name": theatre.name,
             "theatre_address": theatre.address,
             "movie_title": movie.title,
+            "donation": {
+                "ngo_id": delivery.ngo_id,
+                "ngo_name": delivery.ngo_name,
+                "donation_amount": float(delivery.donation_amount) if delivery.donation_amount else 0.0,
+                "donation_percentage": float(delivery.donation_percentage) if delivery.donation_percentage else None
+            } if delivery.ngo_id else None
         }
 
     def get_customer_showing_id(self, user_id):
@@ -793,3 +865,11 @@ class CustomerService:
     def get_customer_showing_id(self, user_id):
         customer_showing = CustomerShowings.query.filter_by(customer_id=user_id).first()
         return {"id": customer_showing.id}
+
+    def get_ngos(self):
+        """Return the list of available NGOs for donations.
+        
+        Returns:
+            list[dict]: List of NGO dictionaries with id, name, cause, and description.
+        """
+        return self.NGOS
