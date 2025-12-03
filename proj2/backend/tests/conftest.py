@@ -1,9 +1,18 @@
 # Test fixtures and test app setup for API testing
-
 import pytest
 from app.app import create_app, db
 from database import create_tables, drop_all_tables, get_database
 from app.models import *
+
+# MOCK MISTRAL API KEY AND FLASK ENV FOR TESTING
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    """
+    Automatically sets dummy environment variables for all tests.
+
+    """
+    monkeypatch.setenv("MISTRAL_API_KEY", "test_fake_key")
+    monkeypatch.setenv("FLASK_ENV", "testing")
 
 # Create a fresh Flask app per test function and reset the MySQL test database
 @pytest.fixture(scope='function')
@@ -16,6 +25,10 @@ def app():
         test_db.close()
         yield app
         db.session.remove()
+
+
+
+
 
 # Provide a Flask test client bound to the app fixture
 @pytest.fixture
