@@ -1,7 +1,5 @@
 import mysql.connector
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
 # Schema table names
 tables = ['theatres', 'auditoriums', 'seats', 'users', 'staff', 'movies', 'movie_showings',
