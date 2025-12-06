@@ -14,6 +14,12 @@
 * Recommended to make sub-branches from backend for each model (i.e., ```backend-drivers```).
 * Review ```models.py``` to confirm model structure and data types.
 
+* Helper script: there is a small utility at `scripts/clear_dev_db.py` that truncates or (optionally) drops and recreates the development database (`movie_munchers_dev`). Use it with caution in development environments only. Example:
+
+	python scripts/clear_dev_db.py --yes --recreate
+
+	Running without flags will print current table counts and require confirmation before making changes.
+
 ### Helpful Functions
 - ```db.session.add()``` (adding instance of model to session)
 - ```db.session.commit()``` (committing all session changes to database)
