@@ -2,23 +2,23 @@
 
 ## Badges
 
-![Licence](https://img.shields.io/github/license/jacness12334/ncsu-csc510-2025-s1-g1-p1) 
-![repo size](https://img.shields.io/github/repo-size/jacness12334/ncsu-csc510-2025-s1-g1-p1) 
-[![GitHub contributors](https://img.shields.io/github/contributors/jacness12334/ncsu-csc510-2025-s1-g1-p1)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/pulls) 
-[![GitHub Last Commit](https://img.shields.io/github/last-commit/jacness12334/ncsu-csc510-2025-s1-g1-p1)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/pulls)
+![Licence](https://img.shields.io/github/license/AryanT7/SE-Proj3) 
+![repo size](https://img.shields.io/github/repo-size/AryanT7/SE-Proj3) 
+[![GitHub contributors](https://img.shields.io/github/contributors/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/pulls) 
+[![GitHub Last Commit](https://img.shields.io/github/last-commit/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/pulls)
 
 
 [![DOI](https://zenodo.org/badge/1044470915.svg)](https://doi.org/10.5281/zenodo.17546938)
 
 
-[![🎨 Style Checks](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/actions/workflows/style-check.yml/badge.svg)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/actions/workflows/style-check.yml)
+[![🎨 Style Checks](https://github.com/AryanT7/SE-Proj3/actions/workflows/style-check.yml/badge.svg)](https://github.com/AryanT7/SE-Proj3/actions/workflows/style-check.yml)
 
-[![codecov](https://codecov.io/gh/jacness12334/ncsu-csc510-2025-s1-g1-p1/graph/badge.svg?token=95QLVABM82)](https://codecov.io/gh/jacness12334/ncsu-csc510-2025-s1-g1-p1)
+[![codecov](https://codecov.io/gh/AryanT7/SE-Proj3/graph/badge.svg?token=95QLVABM82)](https://codecov.io/gh/AryanT7/SE-Proj3)
 
-[![GitHub issues](https://img.shields.io/github/issues/jacness12334/ncsu-csc510-2025-s1-g1-p1)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/issues) 
-[![GitHub issues](https://img.shields.io/github/issues-closed/jacness12334/ncsu-csc510-2025-s1-g1-p1)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/jacness12334/ncsu-csc510-2025-s1-g1-p1)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/pulls) 
-[![GitHub pull requests](https://img.shields.io/github/issues-pr-closed/jacness12334/ncsu-csc510-2025-s1-g1-p1)](https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1/pulls) 
+[![GitHub issues](https://img.shields.io/github/issues/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/issues) 
+[![GitHub issues](https://img.shields.io/github/issues-closed/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/pulls) 
+[![GitHub pull requests](https://img.shields.io/github/issues-pr-closed/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/pulls) 
 
 
 
@@ -107,7 +107,7 @@ An admin reviews analytics, manages user roles, updates content, and ensures sys
 Discord Link: https://discord.gg/7X5gABgbGA
 
 ## GH Repository
-https://github.com/jacness12334/ncsu-csc510-2025-s1-g1-p1
+https://github.com/AryanT7/SE-Proj3
 
 ## Support/Ticketing/Reports/Requests
 https://github.com/txt/se25fall/issues 
