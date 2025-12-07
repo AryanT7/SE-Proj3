@@ -415,10 +415,20 @@ class CustomerService:
         total_price = decimal.Decimal(0.00)
         for item in cart_items:
             if item:
-                product = Products.query.filter_by(id=item.product_id).first()
-                if not product:
-                    raise ValueError(f"Product {item.product_id} not found")
-                total_price += (product.unit_price - product.discount) * item.quantity
+                if item.product_id:
+                    # Handle regular products
+                    product = Products.query.filter_by(id=item.product_id).first()
+                    if not product:
+                        raise ValueError(f"Product {item.product_id} not found")
+                    total_price += (product.unit_price - product.discount) * item.quantity
+                elif item.bundle_id:
+                    # Handle bundles - use the bundle's total_price (discounted price)
+                    bundle = SnackBundles.query.filter_by(id=item.bundle_id).first()
+                    if not bundle:
+                        raise ValueError(f"Bundle {item.bundle_id} not found")
+                    total_price += bundle.total_price * item.quantity
+                else:
+                    raise ValueError("Cart item has neither product_id nor bundle_id")
             else:
                 raise ValueError("Invalid cart item")
         return total_price
@@ -636,8 +646,25 @@ class CustomerService:
         delivery.payment_status = 'completed'
 
         for item in cart_items:
-            product = Products.query.filter_by(id=item.product_id).first()
-            product.inventory_quantity -= item.quantity
+            if item.product_id:
+                # Handle regular products
+                product = Products.query.filter_by(id=item.product_id).first()
+                if not product:
+                    raise ValueError(f"Product {item.product_id} not found")
+                product.inventory_quantity -= item.quantity
+            elif item.bundle_id:
+                # Handle bundles - decrement inventory for each product in the bundle
+                bundle = SnackBundles.query.filter_by(id=item.bundle_id).first()
+                if not bundle:
+                    raise ValueError(f"Bundle {item.bundle_id} not found")
+                
+                bundle_items = BundleItems.query.filter_by(bundle_id=bundle.id).all()
+                for bundle_item in bundle_items:
+                    product = Products.query.filter_by(id=bundle_item.product_id).first()
+                    if not product:
+                        raise ValueError(f"Product {bundle_item.product_id} in bundle not found")
+                    # Decrement by (bundle quantity * product quantity in bundle * cart item quantity)
+                    product.inventory_quantity -= (bundle_item.quantity * item.quantity)
 
         # Increment NGO donations if a donation was made
         current_app.logger.info(f"DEBUG: Checking donation increment - ngo_id={ngo_id}, final_donation_amount={final_donation_amount}, type={type(final_donation_amount)}")
