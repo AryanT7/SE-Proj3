@@ -8,7 +8,7 @@
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/AryanT7/SE-Proj3)](https://github.com/AryanT7/SE-Proj3/pulls)
 
 
-[![DOI](https://zenodo.org/badge/1044470915.svg)](https://doi.org/10.5281/zenodo.17546938)
+[![DOI](https://zenodo.org/badge/1096722852.svg)](https://doi.org/10.5281/zenodo.17844676)
 
 
 [![🎨 Style Checks](https://github.com/AryanT7/SE-Proj3/actions/workflows/style-check.yml/badge.svg)](https://github.com/AryanT7/SE-Proj3/actions/workflows/style-check.yml)
