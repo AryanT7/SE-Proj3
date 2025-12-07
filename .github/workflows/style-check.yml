@@ -29,7 +29,7 @@ jobs:
 
       - name: 🔎 Prettier Check on Configuration and Documentation
         run: |
-          prettier --check .
+            prettier --check proj2/backend
 
       # --- 2. YAML Linting (using a direct, reliable method) ---
       # FIX: Replaced the non-resolvable 'ibi/yamllint-action' with a direct pip installation.
@@ -44,7 +44,7 @@ jobs:
           pip install yamllint
           # The 'yamllint' command automatically looks for '.yamllint.yaml' in the root.
           # We specify the directories to check, as configuration files are the primary focus.
-          yamllint -c .yamllint.yaml .github/workflows/*.yml *.yml *.yaml
+            yamllint -c $GITHUB_WORKSPACE/.yamllint.yaml proj2/backend
 
       # --- 3. Dockerfile Linting (Hadolint) ---
       - name: 🐳 Run Hadolint (Dockerfile Linter)

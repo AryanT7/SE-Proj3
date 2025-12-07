@@ -1,0 +1,8 @@
+# Ignore installed site-packages and virtualenvs in the backend directory
+proj2/backend/lib/
+proj2/backend/.venv/
+
+# Ignore other common vendor or build folders
+node_modules/
+dist/
+build/
