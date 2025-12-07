@@ -347,13 +347,11 @@ class DriverService:
         if not driver:
             raise ValueError("Driver not found for this delivery")
         
-        if driver.duty_status != 'on_delivery':
-            raise ValueError("Driver is not currently on a delivery")
-        
         driver.total_deliveries += 1
         delivery.delivery_status = 'delivered'
         driver.duty_status = 'available'
         db.session.commit()
+        db.session.refresh(delivery)
         return delivery
     
     def rate_driver(self, delivery_id, new_rating):
