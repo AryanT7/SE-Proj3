@@ -153,7 +153,8 @@ export default function CheckoutPage() {
 
       if (!response.ok) {
         const errorResponse = await response.json();
-        throw new Error(errorResponse.message || 'Checkout failed.');
+        console.error('Checkout failed:', errorResponse);
+        throw new Error(errorResponse.error || errorResponse.message || 'Checkout failed.');
       }
 
       // Clear the cart if the order was successful
@@ -161,6 +162,9 @@ export default function CheckoutPage() {
       alert('Order placed successfully!');
     } catch (error) {
       console.error('Checkout error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(errorMessage);
+      alert(`Order failed: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

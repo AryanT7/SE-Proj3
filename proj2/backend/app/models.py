@@ -296,3 +296,14 @@ class BundleItems(db.Model):
 
     def __repr__(self):
         return f'<BundleItem id = {self.id} bundle_id = {self.bundle_id} product_id = {self.product_id} quantity = {self.quantity}>'
+
+class NgoDonations(db.Model):
+    __tablename__ = 'ngo_donations'
+    ngo_id = db.Column(db.Integer, primary_key=True, nullable=False)
+    total_amount_donated = db.Column(DECIMAL(12,2), nullable=False, server_default=u'0.00')
+    date_added = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.current_timestamp())
+    last_updated = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.current_timestamp(), server_onupdate=func.current_timestamp())
+    __table_args__ = (db.CheckConstraint('total_amount_donated >= 0.00', name='check_ngo_donation_amount'),)
+
+    def __repr__(self):
+        return f'<NgoDonations ngo_id = {self.ngo_id} total_amount_donated = {self.total_amount_donated}>'

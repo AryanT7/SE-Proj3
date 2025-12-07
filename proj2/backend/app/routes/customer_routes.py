@@ -593,6 +593,7 @@ def create_delivery():
       'applied_coupon_code': delivery.coupon_code,
       'discount_amount': float(delivery.discount_amount or 0.0),
       # Donation details
+      # Donation information
       'ngo_id': delivery.ngo_id,
       'ngo_name': delivery.ngo_name,
       'donation_amount': float(delivery.donation_amount) if delivery.donation_amount else 0.0,
@@ -904,6 +905,7 @@ def get_ngos():
     ---
     tags: [Donations]
     description: Retrieves the list of available NGOs for donations.
+    description: Retrieves a list of all available NGOs for donations.
     responses:
       200:
         description: NGOs retrieved successfully
@@ -931,6 +933,7 @@ def get_ngos():
 def get_ngo_donations(ngo_id):
     """
     Get NGO Total Donations
+    Get Total Donations for an NGO
     ---
     tags: [Donations]
     description: Retrieves the total amount donated to a specific NGO.
@@ -943,6 +946,10 @@ def get_ngo_donations(ngo_id):
     responses:
       200:
         description: Total donations retrieved successfully
+        description: The ID of the NGO.
+    responses:
+      200:
+        description: Donation total retrieved successfully
         schema:
           type: object
           properties:
@@ -969,6 +976,13 @@ def get_ngo_donations(ngo_id):
             'ngo_id': ngo_id,
             'total_amount_donated': float(total)
         }), 200
+            ngo_name: {type: string}
+            total_amount_donated: {type: number}
+      404: {description: NGO not found}
+    """
+    try:
+        result = customer_service.get_ngo_total_donations(ngo_id)
+        return jsonify(result), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
     except Exception as e:
