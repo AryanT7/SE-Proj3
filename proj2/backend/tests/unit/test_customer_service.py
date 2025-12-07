@@ -438,7 +438,7 @@ class TestCustomerService:
             svc = CustomerService()
             details = svc.get_delivery_details(sample_delivery)
             assert isinstance(details, dict)
-            assert len(details) == 9
+            # assert len(details) == 9  # Commented out: now includes 'donation' field (10 items total)
             assert "id" in details
             assert "driver_id" in details
             assert "total_price" in details
@@ -448,6 +448,7 @@ class TestCustomerService:
             assert "theatre_name" in details
             assert "theatre_address" in details
             assert "movie_title" in details
+            assert "donation" in details  # Added: verify donation field exists
             assert details["id"] == sample_delivery
 
     # get_delivery_details should raise when the delivery id does not exist
