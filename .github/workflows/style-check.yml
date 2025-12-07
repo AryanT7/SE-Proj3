@@ -29,7 +29,7 @@ jobs:
 
       - name: 🔎 Prettier Check on Configuration and Documentation
         run: |
-            prettier --check proj2/backend
+            prettier --check proj2/backend --log-level error
 
       # --- 2. YAML Linting (using a direct, reliable method) ---
       # FIX: Replaced the non-resolvable 'ibi/yamllint-action' with a direct pip installation.
