@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.services.customer_service import CustomerService
 from app.services.recommendation_service import RecommendationService
+from app.app import db
 
 
 # Blueprint for customer-related endpoints
@@ -573,7 +574,10 @@ def create_delivery():
       coupon_code=data.get('coupon_code'),
       puzzle_token=data.get('puzzle_token'),
       puzzle_answer=data.get('puzzle_answer'),
-      skip_puzzle=bool(data.get('skip_puzzle', False))
+      skip_puzzle=bool(data.get('skip_puzzle', False)),
+      ngo_id=data.get('ngo_id'),
+      donation_amount=data.get('donation_amount'),
+      donation_percentage=data.get('donation_percentage')
     )
     return jsonify({
       'message': 'Delivery created successfully',
@@ -587,7 +591,12 @@ def create_delivery():
       'puzzle_answer_provided': data.get('puzzle_answer') is not None,
       # Show applied coupon metadata from the saved delivery
       'applied_coupon_code': delivery.coupon_code,
-      'discount_amount': float(delivery.discount_amount or 0.0)
+      'discount_amount': float(delivery.discount_amount or 0.0),
+      # Donation details
+      'ngo_id': delivery.ngo_id,
+      'ngo_name': delivery.ngo_name,
+      'donation_amount': float(delivery.donation_amount) if delivery.donation_amount else 0.0,
+      'donation_percentage': float(delivery.donation_percentage) if delivery.donation_percentage else None
     }), 201
   except ValueError as e:
     current_app.logger.debug(f"create_delivery error payload: {data}")
@@ -884,5 +893,83 @@ def get_customer_showing(user_id):
         return jsonify(customer_showing), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@customer_bp.route('/ngos', methods=['GET'])
+def get_ngos():
+    """
+    Get List of NGOs
+    ---
+    tags: [Donations]
+    description: Retrieves the list of available NGOs for donations.
+    responses:
+      200:
+        description: NGOs retrieved successfully
+        schema:
+          type: object
+          properties:
+            ngos:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: {type: integer}
+                  name: {type: string}
+                  cause: {type: string}
+                  description: {type: string}
+    """
+    try:
+        ngos = customer_service.get_ngos()
+        return jsonify({'ngos': ngos}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@customer_bp.route('/ngos/<int:ngo_id>/donations', methods=['GET'])
+def get_ngo_donations(ngo_id):
+    """
+    Get NGO Total Donations
+    ---
+    tags: [Donations]
+    description: Retrieves the total amount donated to a specific NGO.
+    parameters:
+      - in: path
+        name: ngo_id
+        type: integer
+        required: true
+        description: The ID of the NGO
+    responses:
+      200:
+        description: Total donations retrieved successfully
+        schema:
+          type: object
+          properties:
+            ngo_id: {type: integer}
+            total_amount_donated: {type: number, format: float}
+      404:
+        description: NGO not found
+    """
+    try:
+        # Validate NGO exists
+        ngos = customer_service.get_ngos()
+        ngo = next((n for n in ngos if n["id"] == ngo_id), None)
+        if not ngo:
+            return jsonify({'error': f'NGO {ngo_id} not found'}), 404
+        
+        # Calculate total donations from Deliveries table
+        from app.models import Deliveries
+        from sqlalchemy import func
+        total = db.session.query(func.sum(Deliveries.donation_amount)).filter(
+            Deliveries.ngo_id == ngo_id
+        ).scalar() or 0.0
+        
+        return jsonify({
+            'ngo_id': ngo_id,
+            'total_amount_donated': float(total)
+        }), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
