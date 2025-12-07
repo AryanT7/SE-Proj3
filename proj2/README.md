@@ -6,7 +6,7 @@
 5) Run your model's ```.py``` file (i.e., ```drivers.py```)
 
 ### NOTES
-* Only run ```load_database.py``` when first creating the database or after dropping all tables to avoid errors due to duplicate entries.
+* Only run the ```load_database.py``` when first creating the database or after dropping all tables to avoid errors due to duplicate entries.
 * ```database.py``` makes three different databases: one for **testing**, **development** (*default*), and **production**. 
 * Functions ```drop_table(database, table)``` and ```drop_all_tables(database)``` are included in ```database.py``` for your convenience/if needed.  
 * Change ```db_name``` to ```movie_munchers_test``` in ```load_database.py``` to load dummy data into test database before performing api/unit tests.
