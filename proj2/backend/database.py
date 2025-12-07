@@ -345,6 +345,15 @@ def create_tables(db):
                     date_added DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                     )"""
 
+    # NGO donations: track total donations per NGO
+    ngo_donations = """CREATE TABLE IF NOT EXISTS ngo_donations (
+                    ngo_id INT PRIMARY KEY NOT NULL,
+                    total_amount_donated DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+                    date_added DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    CONSTRAINT check_ngo_donation_amount CHECK (total_amount_donated >= 0.00)
+                    )"""
+
     # Execute DDL statements in dependency order
     cursor_object.execute(theatres)
     cursor_object.execute(auditoriums)
@@ -366,6 +375,7 @@ def create_tables(db):
     cursor_object.execute(delivery_items)
     cursor_object.execute(coupons)
     cursor_object.execute(code_puzzles)
+    cursor_object.execute(ngo_donations)
 
     # Persist schema changes and close the connection
     db.commit()

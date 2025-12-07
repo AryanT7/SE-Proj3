@@ -639,6 +639,19 @@ class CustomerService:
             product = Products.query.filter_by(id=item.product_id).first()
             product.inventory_quantity -= item.quantity
 
+        # Increment NGO donations if a donation was made
+        current_app.logger.info(f"DEBUG: Checking donation increment - ngo_id={ngo_id}, final_donation_amount={final_donation_amount}, type={type(final_donation_amount)}")
+        if ngo_id and final_donation_amount and final_donation_amount > decimal.Decimal('0.00'):
+            current_app.logger.info(f"DEBUG: Condition passed, attempting to increment NGO {ngo_id} by ${final_donation_amount}")
+            try:
+                self.increment_ngo_donation(ngo_id, final_donation_amount)
+                current_app.logger.info(f"Successfully incremented NGO {ngo_id} donations by ${final_donation_amount}")
+            except Exception as e:
+                current_app.logger.error(f"Failed to increment NGO donations: {e}", exc_info=True)
+                # Don't fail the delivery if donation increment fails, but log it
+        else:
+            current_app.logger.warning(f"DEBUG: Condition failed - ngo_id={ngo_id}, final_donation_amount={final_donation_amount}, check={final_donation_amount > decimal.Decimal('0.00') if final_donation_amount else False}")
+
         self.driver_service.try_assign_driver(delivery=delivery)
         self.staff_service.try_assign_staff(theatre_id=auditorium.theatre_id, delivery=delivery)
 
@@ -815,12 +828,34 @@ class CustomerService:
             raise ValueError(f"Delivery {delivery_id} not found")
         delivery_items = DeliveryItems.query.filter_by(delivery_id=delivery.id).all()
         cart_items = [CartItems.query.filter_by(id=item.cart_item_id).first() for item in delivery_items]
-        items = [{"name": Products.query.filter_by(id=item.product_id).first().name, "quantity": item.quantity} for item in cart_items]
+        items = []
+        for item in cart_items:
+            if item and item.product_id:
+                product = Products.query.filter_by(id=item.product_id).first()
+                if product:
+                    items.append({"name": product.name, "quantity": item.quantity})
+            elif item and item.bundle_id:
+                from app.models import SnackBundles
+                bundle = SnackBundles.query.filter_by(id=item.bundle_id).first()
+                if bundle:
+                    items.append({"name": bundle.name + " (Bundle)", "quantity": item.quantity})
+        
         customer_showing = CustomerShowings.query.filter_by(id=delivery.customer_showing_id).first()
         showing = MovieShowings.query.filter_by(id=customer_showing.movie_showing_id).first()
         movie = Movies.query.filter_by(id=showing.movie_id).first()
         auditorium = Auditoriums.query.filter_by(id=showing.auditorium_id).first()
         theatre = Theatres.query.filter_by(id=auditorium.theatre_id).first()
+        
+        # Build donation info - always include it, even if None
+        donation_info = None
+        if delivery.ngo_id:
+            donation_info = {
+                "ngo_id": delivery.ngo_id,
+                "ngo_name": delivery.ngo_name,
+                "donation_amount": float(delivery.donation_amount) if delivery.donation_amount else 0.0,
+                "donation_percentage": float(delivery.donation_percentage) if delivery.donation_percentage else None
+            }
+        
         return {
             "id": delivery.id,
             "driver_id": delivery.driver_id,
@@ -831,12 +866,7 @@ class CustomerService:
             "theatre_name": theatre.name,
             "theatre_address": theatre.address,
             "movie_title": movie.title,
-            "donation": {
-                "ngo_id": delivery.ngo_id,
-                "ngo_name": delivery.ngo_name,
-                "donation_amount": float(delivery.donation_amount) if delivery.donation_amount else 0.0,
-                "donation_percentage": float(delivery.donation_percentage) if delivery.donation_percentage else None
-            } if delivery.ngo_id else None
+            "donation": donation_info
         }
 
     def get_customer_showing_id(self, user_id):
@@ -873,3 +903,92 @@ class CustomerService:
             list[dict]: List of NGO dictionaries with id, name, cause, and description.
         """
         return self.NGOS
+
+    def get_ngo_total_donations(self, ngo_id):
+        """Get the total amount donated to a specific NGO.
+        
+        Args:
+            ngo_id: The ID of the NGO.
+            
+        Returns:
+            dict: Dictionary with ngo_id, ngo_name, and total_amount_donated.
+            
+        Raises:
+            ValueError: If NGO is not found.
+        """
+        # Validate NGO exists
+        ngo = next((n for n in self.NGOS if n["id"] == ngo_id), None)
+        if not ngo:
+            raise ValueError(f"NGO {ngo_id} not found")
+        
+        # Get or create the donation record
+        from app.models import NgoDonations
+        donation_record = NgoDonations.query.filter_by(ngo_id=ngo_id).first()
+        
+        if not donation_record:
+            # Create record with 0 if it doesn't exist
+            donation_record = NgoDonations(ngo_id=ngo_id, total_amount_donated=decimal.Decimal('0.00'))
+            db.session.add(donation_record)
+            db.session.commit()
+        
+        return {
+            "ngo_id": ngo_id,
+            "ngo_name": ngo["name"],
+            "total_amount_donated": float(donation_record.total_amount_donated)
+        }
+
+    def increment_ngo_donation(self, ngo_id, donation_amount):
+        """Increment the total donations for an NGO.
+        
+        Args:
+            ngo_id: The ID of the NGO.
+            donation_amount: The amount to add (Decimal).
+            
+        Raises:
+            ValueError: If NGO is not found or donation_amount is invalid.
+        """
+        # Ensure donation_amount is Decimal and positive
+        if not isinstance(donation_amount, decimal.Decimal):
+            donation_amount = decimal.Decimal(str(donation_amount))
+        
+        if donation_amount <= decimal.Decimal('0.00'):
+            return  # No need to update if donation is 0 or negative
+        
+        # Validate NGO exists
+        ngo = next((n for n in self.NGOS if n["id"] == ngo_id), None)
+        if not ngo:
+            raise ValueError(f"Invalid NGO id: {ngo_id}")
+        
+        from app.models import NgoDonations
+        from sqlalchemy.exc import OperationalError, ProgrammingError
+        
+        try:
+            # Try to query the table - if it doesn't exist, this will fail
+            donation_record = NgoDonations.query.filter_by(ngo_id=ngo_id).first()
+            
+            if not donation_record:
+                # Create record if it doesn't exist
+                donation_record = NgoDonations(ngo_id=ngo_id, total_amount_donated=decimal.Decimal('0.00'))
+                db.session.add(donation_record)
+                db.session.flush()  # Flush to get the record in the session
+                current_app.logger.info(f"Created new donation record for NGO {ngo_id} ({ngo['name']})")
+            
+            # Increment the total - ensure we're working with Decimal
+            if not isinstance(donation_record.total_amount_donated, decimal.Decimal):
+                donation_record.total_amount_donated = decimal.Decimal(str(donation_record.total_amount_donated))
+            
+            old_total = donation_record.total_amount_donated
+            donation_record.total_amount_donated += donation_amount
+            current_app.logger.info(f"Incremented NGO {ngo_id} ({ngo['name']}) donations: ${old_total} + ${donation_amount} = ${donation_record.total_amount_donated}")
+            # Note: Don't commit here - let the calling function commit the transaction
+        except (OperationalError, ProgrammingError) as e:
+            error_msg = str(e).lower()
+            if 'table' in error_msg and 'doesn\'t exist' in error_msg or 'does not exist' in error_msg:
+                current_app.logger.error(f"CRITICAL: ngo_donations table does not exist! Run: python migrate_create_ngo_donations_table.py")
+                raise ValueError("ngo_donations table does not exist. Please run the migration script: python migrate_create_ngo_donations_table.py")
+            else:
+                current_app.logger.error(f"Database error incrementing NGO {ngo_id} donations: {e}")
+                raise
+        except Exception as e:
+            current_app.logger.error(f"Error incrementing NGO {ngo_id} donations: {e}", exc_info=True)
+            raise
