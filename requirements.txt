@@ -34,7 +34,7 @@ jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
 macholib==1.16.3
 MarkupSafe==3.0.3
-mistral==1.9.11
+mistralai==1.9.11
 mistune==3.1.4
 mysqlclient==2.1.1
 packaging==25.0
