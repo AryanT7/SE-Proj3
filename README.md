@@ -35,7 +35,7 @@
 
 
 ## Mission Statement
-Movie Munchers brings the joy of dining and entertainment together by letting you order food straight to your theater seat. Partnering with local restaurants and nonprofits, the app delivers convenience, community, and care, all in one experience. Future updates will add personalization and expanded partnerships for an even smoother movie night.
+Movie Munchers brings the joy of dining and entertainment together by delivering delicious meals straight to your theater seat—all while supporting local restaurants and nonprofit partners. Our platform makes movie-time ordering effortless: browse and explore menus, place orders, track deliveries in real time, and let staff coordinate everything behind the scenes. We’re elevating the experience even further with personalized AI recommendations powered by Mistral, build-your-own Snack Bundles, optional donations to meaningful causes at checkout, and fun discount riddles that unlock special savings. A more personalized, interactive, and rewarding movie-meal journey starts here.
 
 ## Intro Video
 [Watch our animated intro video!](https://www.canva.com/design/DAG6sFwBEdw/jkNHBZv0Zb6x9KjuWqxz7A/watch)
@@ -49,7 +49,8 @@ Movie Munchers brings the joy of dining and entertainment together by letting yo
 - Delivery Drivers
 
 ## Team
-Group 1 — Janelle Correia, Aadya Maurya, Jacob Philips, Aarya Rajoju, Galav Sharma  
+**Original Team (Group 1):** Janelle Correia, Aadya Maurya, Jacob Philips, Aarya Rajoju, Galav Sharma  
+**Current Contributors (Group 2):** Aryan Tapkire, Sachi Vyas, Supraj Gijre, Irala Narasimhareddy Dilip Kumar
 
 ## Tech Stack
 Frontend: Next.js, React, TypeScript, Tailwind CSS, PostCSS
@@ -58,8 +59,10 @@ Backend: Flask, SQLAlchemy
 
 Database: MySQL
 
+AI/ML: Mistral AI (food recommendations for customers)
+
 ## Demo
-https://drive.google.com/drive/folders/1tsO8Q6qzF6KXDPT4G35aEQn0aarRmzRl?usp=sharing 
+https://youtu.be/p1T1eRbArqA
 
 ## Implemented Milestones
 - Browse menu: Customers can view suppliers and their products 
@@ -71,14 +74,12 @@ https://drive.google.com/drive/folders/1tsO8Q6qzF6KXDPT4G35aEQn0aarRmzRl?usp=sha
 - Profiles: Users can view and edit their profiles.
 - Drivers: Drivers can manage active and past deliveries, update duty/vehicle details, and finalize orders.
 
-## Future Milestones
-- Snack Bundles: Create an interface for custom snack bundles.
-- Personalized Recommendations: Recommend your next movie meal.
-- Group Booking System: Enable community and school screenings.
-- Restaurant Partners: Allow local restaurants to join via secure endpoints.
-- Donations: Each purchase adds 1% of earnings to our donation program. 
-- Nutritional Info: Meals have Nutritional Info. 
-- Drivers: Drivers can view and select deliveries
+## Movie Munchers New Updates
+- Snack Bundles: Allows administrators to create predefined snack bundle combinations for users to browse and select, ensuring consistent and curated meal options.
+- AI food recommendations: Utilizes Mistral AI to analyze user preferences and suggest suitable meal options, enhancing decision-making and personalization.
+- Discount coupons: Enables customers to unlock promotional discounts by completing simple interactive tasks, offering an engaging way to access savings.
+- Donations: Provides an option at checkout for customers to contribute to a NGO of their choice, with full control over the amount they wish to donate.
+- Bug Fixes: Fixed login redirect — users now move to the home page after logging in. Resolved driver workflow issue — drivers can now mark orders as completed.
 
 ## Software use cases
 1. Moviegoer – Order Food During a Movie
@@ -104,7 +105,7 @@ An admin reviews analytics, manages user roles, updates content, and ensures sys
 - [DEPENDENCIES](DEPENDENCIES.md)
 
 ## Discussion 
-Discord Link: https://discord.gg/7X5gABgbGA
+Discord Link: https://discord.com/channels/1407018980891431053/1407061021062856885
 
 ## GH Repository
 https://github.com/AryanT7/SE-Proj3
@@ -137,6 +138,7 @@ https://github.com/txt/se25fall/issues
 MIT License
 
 Copyright (c) 2025 Jacob Phillips, Aadya Maurya, Janelle Correia, Galav Sharma, Aarya Rajoju
+Copyright (c) 2025 Aryan Tapkire, Sachi Vyas, Supraj Gijre, Irala Narasimhareddy Dilip Kumar
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
