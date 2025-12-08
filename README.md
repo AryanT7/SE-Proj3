@@ -35,7 +35,7 @@
 
 
 ## Mission Statement
-Movie Munchers brings the joy of dining and entertainment together by delivering delicious meals straight to your theater seat—all while supporting local restaurants and nonprofit partners. Our platform makes movie-time ordering effortless: browse suppliers, explore menus, place orders, track deliveries in real time, and let staff coordinate everything behind the scenes. We’re elevating the experience even further with personalized AI recommendations powered by Mistral, build-your-own Snack Bundles, optional donations to meaningful causes at checkout, and fun discount riddles that unlock special savings. A more personalized, interactive, and rewarding movie-meal journey starts here.
+Movie Munchers brings the joy of dining and entertainment together by delivering delicious meals straight to your theater seat—all while supporting local restaurants and nonprofit partners. Our platform makes movie-time ordering effortless: browse and explore menus, place orders, track deliveries in real time, and let staff coordinate everything behind the scenes. We’re elevating the experience even further with personalized AI recommendations powered by Mistral, build-your-own Snack Bundles, optional donations to meaningful causes at checkout, and fun discount riddles that unlock special savings. A more personalized, interactive, and rewarding movie-meal journey starts here.
 
 ## Intro Video
 [Watch our animated intro video!](https://www.canva.com/design/DAG6sFwBEdw/jkNHBZv0Zb6x9KjuWqxz7A/watch)
