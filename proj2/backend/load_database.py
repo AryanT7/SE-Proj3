@@ -140,15 +140,15 @@ def populate_db():
             (10, 2, 2, 1, 'completed', 8.00, False)])
    
      
-   # Cart items data
-   insert("""INSERT INTO cart_items (customer_id, product_id, quantity) VALUES (%s, %s, %s)""",
-          [(5, 1, 1),
-            (6, 2, 2)])
+   # Cart items data - removed preset items so customers start with empty carts
+   # insert("""INSERT INTO cart_items (customer_id, product_id, quantity) VALUES (%s, %s, %s)""",
+   #        [(5, 1, 1),
+   #          (6, 2, 2)])
 
-   # Delivery items data
-   insert("""INSERT INTO delivery_items (cart_item_id, delivery_id) VALUES (%s, %s)""",
-         [(1, 1),
-            (2, 2)])
+   # Delivery items data - removed since cart items are empty
+   # insert("""INSERT INTO delivery_items (cart_item_id, delivery_id) VALUES (%s, %s)""",
+   #       [(1, 1),
+   #          (2, 2)])
 
    # Coupons seed data (unlocked by puzzles with difficulty levels)
    # Removed hardcoded coupons 'PUZZLE10' and 'MASTER50' to rely on puzzle-driven coupon creation below
